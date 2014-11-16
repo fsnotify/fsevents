@@ -6,15 +6,23 @@ import (
 	"bufio"
 	"log"
 	"os"
+	"time"
 
 	"github.com/go-fsnotify/fsevents"
 )
 
 func main() {
-	es := fsevents.NewEventStream([]string{"/tmp"}, 0, fsevents.FileEvents|fsevents.WatchRoot)
+	//	dev := fsevents.DeviceForPath("/tmp")
+	// log.Print(dev)
+	es := &fsevents.EventStream{
+		Paths:   []string{"/tmp"},
+		Latency: 500 * time.Millisecond,
+		//		Device:  dev,
+		Flags: fsevents.FileEvents | fsevents.WatchRoot}
+	es.Start()
 
 	go func() {
-		for msg := range es.C {
+		for msg := range es.Events {
 			for _, event := range msg {
 				logEvent(event)
 			}
@@ -51,7 +59,7 @@ var noteDescription = map[fsevents.EventFlags]string{
 	fsevents.ItemIsSymlink:     "IsSymLink",
 }
 
-func logEvent(event fsevents.FSEvent) {
+func logEvent(event fsevents.Event) {
 	note := ""
 	for bit, description := range noteDescription {
 		if event.Flags&bit == bit {
