@@ -56,7 +56,6 @@ const (
 
 //export fsevtCallback
 func fsevtCallback(stream C.FSEventStreamRef, info unsafe.Pointer, numEvents C.size_t, paths **C.char, flags *C.FSEventStreamEventFlags, ids *C.FSEventStreamEventId) {
-	log.Print("fseventCallback")
 	events := make([]FSEvent, int(numEvents))
 
 	for i := 0; i < int(numEvents); i++ {
