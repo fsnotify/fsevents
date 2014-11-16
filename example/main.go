@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	es := fsevents.CreateEventStream([]string{"/tmp"}, 0)
+	es := fsevents.NewEventStream([]string{"/tmp"}, 0, fsevents.FileEvents|fsevents.WatchRoot)
 
 	go func() {
 		for msg := range es.C {
@@ -28,27 +28,27 @@ func main() {
 	es.Stop()
 }
 
-var noteDescription = map[uint32]string{
-	fsevents.EventFlagMustScanSubDirs: "MustScanSubdirs",
-	fsevents.EventFlagUserDropped:     "UserDropped",
-	fsevents.EventFlagKernelDropped:   "KernelDropped",
-	fsevents.EventFlagEventIdsWrapped: "EventIdsWrapped",
-	fsevents.EventFlagHistoryDone:     "HistoryDone",
-	fsevents.EventFlagRootChanged:     "RootChanged",
-	fsevents.EventFlagMount:           "Mount",
-	fsevents.EventFlagUnMount:         "Unmount",
+var noteDescription = map[fsevents.EventFlags]string{
+	fsevents.MustScanSubDirs: "MustScanSubdirs",
+	fsevents.UserDropped:     "UserDropped",
+	fsevents.KernelDropped:   "KernelDropped",
+	fsevents.EventIdsWrapped: "EventIdsWrapped",
+	fsevents.HistoryDone:     "HistoryDone",
+	fsevents.RootChanged:     "RootChanged",
+	fsevents.Mount:           "Mount",
+	fsevents.Unmount:         "Unmount",
 
-	fsevents.EventFlagItemCreated:       "Created",
-	fsevents.EventFlagItemRemoved:       "Removed",
-	fsevents.EventFlagItemInodeMetaMod:  "InodeMetaMod",
-	fsevents.EventFlagItemRenamed:       "Renamed",
-	fsevents.EventFlagItemModified:      "Modified",
-	fsevents.EventFlagItemFinderInfoMod: "FinderInfoMod",
-	fsevents.EventFlagItemChangeOwner:   "ChangeOwner",
-	fsevents.EventFlagItemXattrMod:      "XAttrMod",
-	fsevents.EventFlagItemIsFile:        "IsFile",
-	fsevents.EventFlagItemIsDir:         "IsDir",
-	fsevents.EventFlagItemIsSymlink:     "IsSymLink",
+	fsevents.ItemCreated:       "Created",
+	fsevents.ItemRemoved:       "Removed",
+	fsevents.ItemInodeMetaMod:  "InodeMetaMod",
+	fsevents.ItemRenamed:       "Renamed",
+	fsevents.ItemModified:      "Modified",
+	fsevents.ItemFinderInfoMod: "FinderInfoMod",
+	fsevents.ItemChangeOwner:   "ChangeOwner",
+	fsevents.ItemXattrMod:      "XAttrMod",
+	fsevents.ItemIsFile:        "IsFile",
+	fsevents.ItemIsDir:         "IsDir",
+	fsevents.ItemIsSymlink:     "IsSymLink",
 }
 
 func logEvent(event fsevents.FSEvent) {

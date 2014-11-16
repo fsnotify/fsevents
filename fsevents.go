@@ -11,12 +11,12 @@ static CFArrayRef ArrayCreateMutable(int len) {
 
 extern void fsevtCallback(FSEventStreamRef p0, void * info, size_t p1, char** p2, FSEventStreamEventFlags* p3, FSEventStreamEventId* p4);
 
-static FSEventStreamRef EventStreamCreateRelativeToDevice(FSEventStreamContext * context, dev_t dev, CFArrayRef paths, FSEventStreamEventId since, CFTimeInterval latency) {
-	return FSEventStreamCreateRelativeToDevice(NULL, (FSEventStreamCallback) fsevtCallback, context, dev, paths, since, latency, 0);
+static FSEventStreamRef EventStreamCreateRelativeToDevice(FSEventStreamContext * context, dev_t dev, CFArrayRef paths, FSEventStreamEventId since, CFTimeInterval latency, FSEventStreamCreateFlags flags) {
+	return FSEventStreamCreateRelativeToDevice(NULL, (FSEventStreamCallback) fsevtCallback, context, dev, paths, since, latency, flags);
 }
 
-static FSEventStreamRef EventStreamCreate(FSEventStreamContext * context, CFArrayRef paths, FSEventStreamEventId since, CFTimeInterval latency) {
-	return FSEventStreamCreate(NULL, (FSEventStreamCallback) fsevtCallback, context, paths, since, latency, 0);
+static FSEventStreamRef EventStreamCreate(FSEventStreamContext * context, CFArrayRef paths, FSEventStreamEventId since, CFTimeInterval latency, FSEventStreamCreateFlags flags) {
+	return FSEventStreamCreate(NULL, (FSEventStreamCallback) fsevtCallback, context, paths, since, latency, flags);
 }
 */
 import "C"
@@ -74,48 +74,24 @@ const (
 
 	// The following flags are only set when using FileEvents.
 
-	Created
-	Removed
-	InodeMetaMod
-	Renamed
-	Modified
-	FinderInfoMod
-	ChangeOwner
-	XattrMod
-	IsFile
-	IsDir
-	IsSymlink
+	ItemCreated
+	ItemRemoved
+	ItemInodeMetaMod
+	ItemRenamed
+	ItemModified
+	ItemFinderInfoMod
+	ItemChangeOwner
+	ItemXattrMod
+	ItemIsFile
+	ItemIsDir
+	ItemIsSymlink
 )
 
 type FSEvent struct {
 	Path  string
-	Flags uint32
+	Flags EventFlags
 	Id    uint64
 }
-
-// FSEventStreamEventFlags
-const (
-	EventFlagNone              = C.kFSEventStreamEventFlagNone              //    00
-	EventFlagMustScanSubDirs   = C.kFSEventStreamEventFlagMustScanSubDirs   //    01
-	EventFlagUserDropped       = C.kFSEventStreamEventFlagUserDropped       //    02
-	EventFlagKernelDropped     = C.kFSEventStreamEventFlagKernelDropped     //    04
-	EventFlagEventIdsWrapped   = C.kFSEventStreamEventFlagEventIdsWrapped   //    08
-	EventFlagHistoryDone       = C.kFSEventStreamEventFlagHistoryDone       //    10
-	EventFlagRootChanged       = C.kFSEventStreamEventFlagRootChanged       //    20
-	EventFlagMount             = C.kFSEventStreamEventFlagMount             //    40
-	EventFlagUnMount           = C.kFSEventStreamEventFlagUnmount           //    80
-	EventFlagItemCreated       = C.kFSEventStreamEventFlagItemCreated       //   100
-	EventFlagItemRemoved       = C.kFSEventStreamEventFlagItemRemoved       //   200
-	EventFlagItemInodeMetaMod  = C.kFSEventStreamEventFlagItemInodeMetaMod  //   400
-	EventFlagItemRenamed       = C.kFSEventStreamEventFlagItemRenamed       //   800
-	EventFlagItemModified      = C.kFSEventStreamEventFlagItemModified      //  1000
-	EventFlagItemFinderInfoMod = C.kFSEventStreamEventFlagItemFinderInfoMod //  2000
-	EventFlagItemChangeOwner   = C.kFSEventStreamEventFlagItemChangeOwner   //  4000
-	EventFlagItemXattrMod      = C.kFSEventStreamEventFlagItemXattrMod      //  8000
-	EventFlagItemIsFile        = C.kFSEventStreamEventFlagItemIsFile        // 10000
-	EventFlagItemIsDir         = C.kFSEventStreamEventFlagItemIsDir         // 20000
-	EventFlagItemIsSymlink     = C.kFSEventStreamEventFlagItemIsSymlink     // 40000
-)
 
 //export fsevtCallback
 func fsevtCallback(stream C.FSEventStreamRef, info unsafe.Pointer, numEvents C.size_t, paths **C.char, flags *C.FSEventStreamEventFlags, ids *C.FSEventStreamEventId) {
@@ -131,7 +107,7 @@ func fsevtCallback(stream C.FSEventStreamRef, info unsafe.Pointer, numEvents C.s
 		cids := uintptr(unsafe.Pointer(ids)) + (uintptr(i) * unsafe.Sizeof(*ids))
 		cid := *(*C.FSEventStreamEventId)(unsafe.Pointer(cids))
 
-		events[i] = FSEvent{Path: C.GoString(cpath), Flags: uint32(cflag), Id: uint64(cid)}
+		events[i] = FSEvent{Path: C.GoString(cpath), Flags: EventFlags(cflag), Id: uint64(cid)}
 	}
 
 	evtC := *(*chan []FSEvent)(info)
@@ -199,9 +175,9 @@ func FSEventsSince(paths []string, dev int64, since uint64) []FSEvent {
 	latency := C.CFTimeInterval(1.0)
 	var stream C.FSEventStreamRef
 	if dev != 0 {
-		stream = C.EventStreamCreateRelativeToDevice(&context, C.dev_t(dev), cPaths, C.FSEventStreamEventId(since), latency)
+		stream = C.EventStreamCreateRelativeToDevice(&context, C.dev_t(dev), cPaths, C.FSEventStreamEventId(since), latency, 0)
 	} else {
-		stream = C.EventStreamCreate(&context, cPaths, C.FSEventStreamEventId(since), latency)
+		stream = C.EventStreamCreate(&context, cPaths, C.FSEventStreamEventId(since), latency, 0)
 	}
 
 	rlref := C.CFRunLoopGetCurrent()
@@ -235,7 +211,7 @@ type FSEventStream struct {
 	C      chan []FSEvent
 }
 
-func CreateEventStream(paths []string, since uint64) *FSEventStream {
+func NewEventStream(paths []string, since uint64, flags CreateFlags) *FSEventStream {
 	cPaths := C.ArrayCreateMutable(C.int(len(paths)))
 	defer C.CFRelease(C.CFTypeRef(cPaths))
 
@@ -258,7 +234,7 @@ func CreateEventStream(paths []string, since uint64) *FSEventStream {
 	context := C.FSEventStreamContext{info: unsafe.Pointer(&es.C)}
 
 	latency := C.CFTimeInterval(1.0)
-	es.stream = C.EventStreamCreate(&context, cPaths, C.FSEventStreamEventId(since), latency)
+	es.stream = C.EventStreamCreate(&context, cPaths, C.FSEventStreamEventId(since), latency, C.FSEventStreamCreateFlags(flags))
 
 	loopC := make(chan unsafe.Pointer)
 	go func() {
