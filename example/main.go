@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"log"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/go-fsnotify/fsevents"
@@ -20,9 +21,10 @@ func main() {
 		//		Device:  dev,
 		Flags: fsevents.FileEvents | fsevents.WatchRoot}
 	es.Start()
+	ec := es.Events
 
 	go func() {
-		for msg := range es.Events {
+		for msg := range ec {
 			for _, event := range msg {
 				logEvent(event)
 			}
@@ -31,18 +33,26 @@ func main() {
 
 	in := bufio.NewReader(os.Stdin)
 
-	log.Print("Started, press enter to stop")
-	in.ReadString('\n')
-	es.Stop()
+	if false {
+		log.Print("Started, press enter to GC")
+		in.ReadString('\n')
+		runtime.GC()
+		log.Print("GC'd, press enter to quit")
+		in.ReadString('\n')
+	} else {
+		log.Print("Started, press enter to stop")
+		in.ReadString('\n')
+		es.Stop()
 
-	log.Print("Stopped, press enter to restart")
-	in.ReadString('\n')
-	es.Resume = true
-	es.Start()
+		log.Print("Stopped, press enter to restart")
+		in.ReadString('\n')
+		es.Resume = true
+		es.Start()
 
-	log.Print("Restarted, press enter to quit")
-	in.ReadString('\n')
-	es.Stop()
+		log.Print("Restarted, press enter to quit")
+		in.ReadString('\n')
+		es.Stop()
+	}
 }
 
 var noteDescription = map[fsevents.EventFlags]string{
