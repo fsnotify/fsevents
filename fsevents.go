@@ -20,9 +20,12 @@ static FSEventStreamRef EventStreamCreate(FSEventStreamContext * context, CFArra
 }
 */
 import "C"
-import "unsafe"
-import "path/filepath"
-import "time"
+import (
+	"path/filepath"
+	"runtime"
+	"time"
+	"unsafe"
+)
 
 const EventIdSinceNow = uint64(C.kFSEventStreamEventIdSinceNow + (1 << 64))
 
@@ -150,8 +153,9 @@ func GetIdForDeviceBeforeTime(dev, tm int64) uint64 {
 */
 
 type EventStream struct {
-	stream C.FSEventStreamRef
-	rlref  C.CFRunLoopRef
+	stream       C.FSEventStreamRef
+	rlref        C.CFRunLoopRef
+	hasFinalizer bool
 
 	Events  chan []Event
 	Paths   []string
@@ -160,6 +164,12 @@ type EventStream struct {
 	Resume  bool
 	Latency time.Duration
 	Device  int64
+}
+
+func finalizer(es *EventStream) {
+	// If an EventStream is freed without Stop being called it will
+	// cause a panic. This avoids that, and closes the stream instead.
+	es.Stop()
 }
 
 func (es *EventStream) Start() {
@@ -198,6 +208,11 @@ func (es *EventStream) Start() {
 		C.FSEventStreamStart(es.stream)
 		C.CFRunLoopRun()
 	}()
+
+	if !es.hasFinalizer {
+		runtime.SetFinalizer(es, finalizer)
+		es.hasFinalizer = true
+	}
 }
 
 func (es *EventStream) Flush(sync bool) {
@@ -209,10 +224,13 @@ func (es *EventStream) Flush(sync bool) {
 }
 
 func (es *EventStream) Stop() {
-	C.FSEventStreamStop(es.stream)
-	C.FSEventStreamInvalidate(es.stream)
-	C.FSEventStreamRelease(es.stream)
-	C.CFRunLoopStop(es.rlref)
+	if es.stream != nil {
+		C.FSEventStreamStop(es.stream)
+		C.FSEventStreamInvalidate(es.stream)
+		C.FSEventStreamRelease(es.stream)
+		C.CFRunLoopStop(es.rlref)
+	}
+	es.stream = nil
 }
 
 func (es *EventStream) Restart() {
