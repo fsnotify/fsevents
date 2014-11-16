@@ -236,16 +236,12 @@ func NewEventStream(paths []string, since uint64, flags CreateFlags) *FSEventStr
 	latency := C.CFTimeInterval(1.0)
 	es.stream = C.EventStreamCreate(&context, cPaths, C.FSEventStreamEventId(since), latency, C.FSEventStreamCreateFlags(flags))
 
-	loopC := make(chan unsafe.Pointer)
 	go func() {
-		rlref := C.CFRunLoopGetCurrent()
-		C.FSEventStreamScheduleWithRunLoop(es.stream, rlref, C.kCFRunLoopDefaultMode)
-		loopC <- unsafe.Pointer(rlref)
+		es.rlref = C.CFRunLoopGetCurrent()
+		C.FSEventStreamScheduleWithRunLoop(es.stream, es.rlref, C.kCFRunLoopDefaultMode)
+		C.FSEventStreamStart(es.stream)
 		C.CFRunLoopRun()
 	}()
-
-	es.rlref = C.CFRunLoopRef(<-loopC)
-	C.FSEventStreamStart(es.stream)
 
 	return &es
 }
