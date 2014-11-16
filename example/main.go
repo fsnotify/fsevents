@@ -28,10 +28,19 @@ func main() {
 			}
 		}
 	}()
-	log.Print("Started")
 
-	// press enter to continue
 	in := bufio.NewReader(os.Stdin)
+
+	log.Print("Started, press enter to stop")
+	in.ReadString('\n')
+	es.Stop()
+
+	log.Print("Stopped, press enter to restart")
+	in.ReadString('\n')
+	es.Resume = true
+	es.Start()
+
+	log.Print("Restarted, press enter to quit")
 	in.ReadString('\n')
 	es.Stop()
 }
