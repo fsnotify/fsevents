@@ -128,15 +128,15 @@ func fsevtCallback(stream C.FSEventStreamRef, info unsafe.Pointer, numEvents C.s
 	es.Events <- events
 }
 
-// FSEventsLatestID returns the most recently generated event ID, system-wide.
-func FSEventsLatestID() uint64 {
+// LatestEventID returns the most recently generated event ID, system-wide.
+func LatestEventID() uint64 {
 	return uint64(C.FSEventsGetCurrentEventId())
 }
 
 // DeviceForPath returns the device ID for the specified volume.
-func DeviceForPath(pth string) int64 {
+func DeviceForPath(path string) int64 {
 	cStat := C.struct_stat{}
-	cPath := C.CString(pth)
+	cPath := C.CString(path)
 	defer C.free(unsafe.Pointer(cPath))
 
 	_ = C.lstat(cPath, &cStat)
