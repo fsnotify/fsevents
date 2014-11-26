@@ -1,5 +1,6 @@
 // +build darwin
 
+// Package fsevents provides file system notifications on OS X.
 package fsevents
 
 /*
@@ -29,6 +30,7 @@ import (
 	"unsafe"
 )
 
+// EventIdSinceNow is a sentinel to begin watching events "since now".
 const EventIdSinceNow = uint64(C.kFSEventStreamEventIdSinceNow + (1 << 64))
 
 // CreateFlags for creating a New stream.
@@ -95,6 +97,7 @@ const (
 	ItemIsSymlink
 )
 
+// Event represents a single file system notification.
 type Event struct {
 	Path  string
 	Flags EventFlags
@@ -125,10 +128,12 @@ func fsevtCallback(stream C.FSEventStreamRef, info unsafe.Pointer, numEvents C.s
 	es.Events <- events
 }
 
+// FSEventsLatestId returns the most recently generated event ID, system-wide.
 func FSEventsLatestId() uint64 {
 	return uint64(C.FSEventsGetCurrentEventId())
 }
 
+// DeviceForPath returns the device ID for the specified volume.
 func DeviceForPath(pth string) int64 {
 	cStat := C.struct_stat{}
 	cPath := C.CString(pth)
@@ -138,6 +143,7 @@ func DeviceForPath(pth string) int64 {
 	return int64(cStat.st_dev)
 }
 
+// GetIdForDeviceBeforeTime returns the most recent Event ID before the given time.
 func GetIdForDeviceBeforeTime(dev, tm int64) uint64 {
 	return uint64(C.FSEventsGetLastEventIdForDeviceBeforeTime(C.dev_t(dev), C.CFAbsoluteTime(tm)))
 }
@@ -154,6 +160,7 @@ func GetIdForDeviceBeforeTime(dev, tm int64) uint64 {
 
 */
 
+// EventStream is the primary interface to FSEvents.
 type EventStream struct {
 	stream       C.FSEventStreamRef
 	rlref        C.CFRunLoopRef
@@ -174,6 +181,7 @@ func finalizer(es *EventStream) {
 	es.Stop()
 }
 
+// Start listening to an event stream.
 func (es *EventStream) Start() {
 	cPaths := C.ArrayCreateMutable(C.int(len(es.Paths)))
 	defer C.CFRelease(C.CFTypeRef(cPaths))
@@ -217,6 +225,7 @@ func (es *EventStream) Start() {
 	}
 }
 
+// Flush events that have occurred but haven't been delivered.
 func (es *EventStream) Flush(sync bool) {
 	if sync {
 		C.FSEventStreamFlushSync(es.stream)
@@ -225,6 +234,7 @@ func (es *EventStream) Flush(sync bool) {
 	}
 }
 
+// Stop listening to the event stream.
 func (es *EventStream) Stop() {
 	if es.stream != nil {
 		C.FSEventStreamStop(es.stream)
@@ -235,6 +245,7 @@ func (es *EventStream) Stop() {
 	es.stream = nil
 }
 
+// Restart listening.
 func (es *EventStream) Restart() {
 	es.Stop()
 	es.Resume = true
