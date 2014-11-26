@@ -59,7 +59,7 @@ var noteDescription = map[fsevents.EventFlags]string{
 	fsevents.MustScanSubDirs: "MustScanSubdirs",
 	fsevents.UserDropped:     "UserDropped",
 	fsevents.KernelDropped:   "KernelDropped",
-	fsevents.EventIdsWrapped: "EventIdsWrapped",
+	fsevents.EventIDsWrapped: "EventIDsWrapped",
 	fsevents.HistoryDone:     "HistoryDone",
 	fsevents.RootChanged:     "RootChanged",
 	fsevents.Mount:           "Mount",
@@ -85,5 +85,5 @@ func logEvent(event fsevents.Event) {
 			note += description + " "
 		}
 	}
-	log.Printf("EventID: %d Path: %s Flags: %s", event.Id, event.Path, note)
+	log.Printf("EventID: %d Path: %s Flags: %s", event.ID, event.Path, note)
 }
