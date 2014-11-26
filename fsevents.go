@@ -31,7 +31,7 @@ import (
 )
 
 // EventIdSinceNow is a sentinel to begin watching events "since now".
-const EventIdSinceNow = uint64(C.kFSEventStreamEventIdSinceNow + (1 << 64))
+const EventIDSinceNow = uint64(C.kFSEventStreamEventIdSinceNow + (1 << 64))
 
 // CreateFlags for creating a New stream.
 type CreateFlags uint32
@@ -68,8 +68,8 @@ const (
 	UserDropped
 	KernelDropped
 
-	// EventIdsWrapped indicates the 64-bit event ID counter wrapped around.
-	EventIdsWrapped
+	// EventIDsWrapped indicates the 64-bit event ID counter wrapped around.
+	EventIDsWrapped
 
 	// HistoryDone is a sentinel event when retrieving events sinceWhen.
 	HistoryDone
@@ -101,7 +101,7 @@ const (
 type Event struct {
 	Path  string
 	Flags EventFlags
-	Id    uint64
+	ID    uint64
 }
 
 //export fsevtCallback
@@ -120,16 +120,16 @@ func fsevtCallback(stream C.FSEventStreamRef, info unsafe.Pointer, numEvents C.s
 		cids := uintptr(unsafe.Pointer(ids)) + (uintptr(i) * unsafe.Sizeof(*ids))
 		cid := *(*C.FSEventStreamEventId)(unsafe.Pointer(cids))
 
-		events[i] = Event{Path: C.GoString(cpath), Flags: EventFlags(cflag), Id: uint64(cid)}
-		// Record the latest EventId to support resuming the stream
-		es.EventId = uint64(cid)
+		events[i] = Event{Path: C.GoString(cpath), Flags: EventFlags(cflag), ID: uint64(cid)}
+		// Record the latest EventID to support resuming the stream
+		es.EventID = uint64(cid)
 	}
 
 	es.Events <- events
 }
 
-// FSEventsLatestId returns the most recently generated event ID, system-wide.
-func FSEventsLatestId() uint64 {
+// FSEventsLatestID returns the most recently generated event ID, system-wide.
+func FSEventsLatestID() uint64 {
 	return uint64(C.FSEventsGetCurrentEventId())
 }
 
@@ -143,8 +143,8 @@ func DeviceForPath(pth string) int64 {
 	return int64(cStat.st_dev)
 }
 
-// GetIdForDeviceBeforeTime returns the most recent Event ID before the given time.
-func GetIdForDeviceBeforeTime(dev, tm int64) uint64 {
+// GetIDForDeviceBeforeTime returns the most recent Event ID before the given time.
+func GetIDForDeviceBeforeTime(dev, tm int64) uint64 {
 	return uint64(C.FSEventsGetLastEventIdForDeviceBeforeTime(C.dev_t(dev), C.CFAbsoluteTime(tm)))
 }
 
@@ -169,7 +169,7 @@ type EventStream struct {
 	Events  chan []Event
 	Paths   []string
 	Flags   CreateFlags
-	EventId uint64
+	EventID uint64
 	Resume  bool
 	Latency time.Duration
 	Device  int64
@@ -195,9 +195,9 @@ func (es *EventStream) Start() {
 		C.CFArrayAppendValue(cPaths, unsafe.Pointer(str))
 	}
 
-	since := C.FSEventStreamEventId(EventIdSinceNow)
+	since := C.FSEventStreamEventId(EventIDSinceNow)
 	if es.Resume {
-		since = C.FSEventStreamEventId(es.EventId)
+		since = C.FSEventStreamEventId(es.EventID)
 	}
 
 	if es.Events == nil {
