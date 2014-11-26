@@ -13,8 +13,10 @@ import (
 )
 
 func main() {
-	//	dev := fsevents.DeviceForPath("/tmp")
-	// log.Print(dev)
+	dev := fsevents.DeviceForPath("/tmp")
+	log.Print(dev)
+	log.Println(fsevents.EventIDForDeviceBeforeTime(dev, time.Now()))
+
 	es := &fsevents.EventStream{
 		Paths:   []string{"/tmp"},
 		Latency: 500 * time.Millisecond,

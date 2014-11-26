@@ -26,6 +26,7 @@ import "C"
 import (
 	"path/filepath"
 	"runtime"
+	"syscall"
 	"time"
 	"unsafe"
 )
@@ -134,18 +135,16 @@ func LatestEventID() uint64 {
 }
 
 // DeviceForPath returns the device ID for the specified volume.
-func DeviceForPath(path string) int64 {
-	cStat := C.struct_stat{}
-	cPath := C.CString(path)
-	defer C.free(unsafe.Pointer(cPath))
-
-	_ = C.lstat(cPath, &cStat)
-	return int64(cStat.st_dev)
+func DeviceForPath(path string) int32 {
+	stat := syscall.Stat_t{}
+	syscall.Lstat(path, &stat)
+	return stat.Dev
 }
 
-// GetIDForDeviceBeforeTime returns the most recent Event ID before the given time.
-func GetIDForDeviceBeforeTime(dev, tm int64) uint64 {
-	return uint64(C.FSEventsGetLastEventIdForDeviceBeforeTime(C.dev_t(dev), C.CFAbsoluteTime(tm)))
+// EventIDForDeviceBeforeTime returns an event ID before a given time.
+func EventIDForDeviceBeforeTime(dev int32, before time.Time) uint64 {
+	tm := C.CFAbsoluteTime(before.Unix())
+	return uint64(C.FSEventsGetLastEventIdForDeviceBeforeTime(C.dev_t(dev), tm))
 }
 
 /*
