@@ -135,10 +135,12 @@ func LatestEventID() uint64 {
 }
 
 // DeviceForPath returns the device ID for the specified volume.
-func DeviceForPath(path string) int32 {
+func DeviceForPath(path string) (int32, error) {
 	stat := syscall.Stat_t{}
-	syscall.Lstat(path, &stat)
-	return stat.Dev
+	if err := syscall.Lstat(path, &stat); err != nil {
+		return 0, err
+	}
+	return stat.Dev, nil
 }
 
 // EventIDForDeviceBeforeTime returns an event ID before a given time.

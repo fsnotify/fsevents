@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	dev := fsevents.DeviceForPath("/tmp")
+	dev, _ := fsevents.DeviceForPath("/tmp")
 	log.Print(dev)
 	log.Println(fsevents.EventIDForDeviceBeforeTime(dev, time.Now()))
 
