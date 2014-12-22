@@ -214,6 +214,7 @@ func (es *EventStream) Start() {
 	}
 
 	go func() {
+		runtime.LockOSThread()
 		es.rlref = C.CFRunLoopGetCurrent()
 		C.FSEventStreamScheduleWithRunLoop(es.stream, es.rlref, C.kCFRunLoopDefaultMode)
 		C.FSEventStreamStart(es.stream)
