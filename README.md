@@ -4,6 +4,8 @@
 
 [FSEvents](https://developer.apple.com/library/mac/documentation/Darwin/Reference/FSEvents_Ref/) allows an application to monitor a whole file system or portion of it. FSEvents is only available on OS X.
 
+**Warning:** This API should be considered unstable.
+
 ## Contributing
 
 Request features and report bugs using the [GitHub Issue Tracker](https://github.com/go-fsnotify/fsevents/issues).
