@@ -121,7 +121,7 @@ func fsevtCallback(stream C.FSEventStreamRef, info unsafe.Pointer, numEvents C.s
 		cids := uintptr(unsafe.Pointer(ids)) + (uintptr(i) * unsafe.Sizeof(*ids))
 		cid := *(*C.FSEventStreamEventId)(unsafe.Pointer(cids))
 
-		events[i] = Event{Path: C.GoString(cpath), Flags: EventFlags(cflag), ID: uint64(cid)}
+		events[i] = Event{Path: filepath.Join("/", C.GoString(cpath)), Flags: EventFlags(cflag), ID: uint64(cid)}
 		// Record the latest EventID to support resuming the stream
 		es.EventID = uint64(cid)
 	}
