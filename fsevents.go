@@ -173,7 +173,7 @@ type EventStream struct {
 	EventID uint64
 	Resume  bool
 	Latency time.Duration
-	Device  int64
+	Device  int32
 }
 
 func finalizer(es *EventStream) {

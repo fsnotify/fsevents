@@ -20,7 +20,7 @@ func main() {
 	es := &fsevents.EventStream{
 		Paths:   []string{"/tmp"},
 		Latency: 500 * time.Millisecond,
-		//		Device:  dev,
+		// Device:  dev,
 		Flags: fsevents.FileEvents | fsevents.WatchRoot}
 	es.Start()
 	ec := es.Events
