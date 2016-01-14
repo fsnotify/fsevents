@@ -1,3 +1,5 @@
+Note: This repository was forked in order to add a operating system agnostic .go file so `go get` does not fail on non-darwin machines.
+
 # FSEvents bindings for Go (OS X)
 
 [![GoDoc](https://godoc.org/github.com/go-fsnotify/fsevents?status.svg)](https://godoc.org/github.com/go-fsnotify/fsevents)
