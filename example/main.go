@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/go-fsnotify/fsevents"
+	"github.com/fsnotify/fsevents"
 )
 
 func main() {
