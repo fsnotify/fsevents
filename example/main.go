@@ -26,8 +26,9 @@ func main() {
 	ec := es.Events
 
 	go func() {
-		for msg := range ec {
-			for _, event := range msg {
+		for {
+			select {
+			case event := <-ec:
 				logEvent(event)
 			}
 		}

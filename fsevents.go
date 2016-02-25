@@ -107,8 +107,6 @@ type Event struct {
 
 //export fsevtCallback
 func fsevtCallback(stream C.FSEventStreamRef, info unsafe.Pointer, numEvents C.size_t, paths **C.char, flags *C.FSEventStreamEventFlags, ids *C.FSEventStreamEventId) {
-	events := make([]Event, int(numEvents))
-
 	es := (*EventStream)(info)
 
 	for i := 0; i < int(numEvents); i++ {
@@ -121,12 +119,11 @@ func fsevtCallback(stream C.FSEventStreamRef, info unsafe.Pointer, numEvents C.s
 		cids := uintptr(unsafe.Pointer(ids)) + (uintptr(i) * unsafe.Sizeof(*ids))
 		cid := *(*C.FSEventStreamEventId)(unsafe.Pointer(cids))
 
-		events[i] = Event{Path: C.GoString(cpath), Flags: EventFlags(cflag), ID: uint64(cid)}
 		// Record the latest EventID to support resuming the stream
 		es.EventID = uint64(cid)
-	}
 
-	es.Events <- events
+		es.Events <- Event{Path: C.GoString(cpath), Flags: EventFlags(cflag), ID: uint64(cid)}
+	}
 }
 
 // LatestEventID returns the most recently generated event ID, system-wide.
@@ -167,7 +164,7 @@ type EventStream struct {
 	rlref        C.CFRunLoopRef
 	hasFinalizer bool
 
-	Events  chan []Event
+	Events  chan Event
 	Paths   []string
 	Flags   CreateFlags
 	EventID uint64
@@ -202,7 +199,7 @@ func (es *EventStream) Start() {
 	}
 
 	if es.Events == nil {
-		es.Events = make(chan []Event)
+		es.Events = make(chan Event, 2048)
 	}
 
 	context := C.FSEventStreamContext{info: unsafe.Pointer(es)}
