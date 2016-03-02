@@ -12,13 +12,15 @@ static CFArrayRef ArrayCreateMutable(int len) {
 	return CFArrayCreateMutable(NULL, len, &kCFTypeArrayCallBacks);
 }
 
-extern void fsevtCallback(FSEventStreamRef p0, void * info, size_t p1, char** p2, FSEventStreamEventFlags* p3, FSEventStreamEventId* p4);
+extern void fsevtCallback(FSEventStreamRef p0, uintptr_t info, size_t p1, char** p2, FSEventStreamEventFlags* p3, FSEventStreamEventId* p4);
 
-static FSEventStreamRef EventStreamCreateRelativeToDevice(FSEventStreamContext * context, dev_t dev, CFArrayRef paths, FSEventStreamEventId since, CFTimeInterval latency, FSEventStreamCreateFlags flags) {
+static FSEventStreamRef EventStreamCreateRelativeToDevice(FSEventStreamContext * context, uintptr_t info, dev_t dev, CFArrayRef paths, FSEventStreamEventId since, CFTimeInterval latency, FSEventStreamCreateFlags flags) {
+	context->info = (void*) info;
 	return FSEventStreamCreateRelativeToDevice(NULL, (FSEventStreamCallback) fsevtCallback, context, dev, paths, since, latency, flags);
 }
 
-static FSEventStreamRef EventStreamCreate(FSEventStreamContext * context, CFArrayRef paths, FSEventStreamEventId since, CFTimeInterval latency, FSEventStreamCreateFlags flags) {
+static FSEventStreamRef EventStreamCreate(FSEventStreamContext * context, uintptr_t info, CFArrayRef paths, FSEventStreamEventId since, CFTimeInterval latency, FSEventStreamCreateFlags flags) {
+	context->info = (void*) info;
 	return FSEventStreamCreate(NULL, (FSEventStreamCallback) fsevtCallback, context, paths, since, latency, flags);
 }
 */
@@ -26,6 +28,7 @@ import "C"
 import (
 	"path/filepath"
 	"runtime"
+	"sync"
 	"syscall"
 	"time"
 	"unsafe"
@@ -106,10 +109,13 @@ type Event struct {
 }
 
 //export fsevtCallback
-func fsevtCallback(stream C.FSEventStreamRef, info unsafe.Pointer, numEvents C.size_t, paths **C.char, flags *C.FSEventStreamEventFlags, ids *C.FSEventStreamEventId) {
+func fsevtCallback(stream C.FSEventStreamRef, info uintptr, numEvents C.size_t, paths **C.char, flags *C.FSEventStreamEventFlags, ids *C.FSEventStreamEventId) {
 	events := make([]Event, int(numEvents))
 
-	es := (*EventStream)(info)
+	es := registry.Get(info)
+	if es == nil {
+		return
+	}
 
 	for i := 0; i < int(numEvents); i++ {
 		cpaths := uintptr(unsafe.Pointer(paths)) + (uintptr(i) * unsafe.Sizeof(*paths))
@@ -166,6 +172,7 @@ type EventStream struct {
 	stream       C.FSEventStreamRef
 	rlref        C.CFRunLoopRef
 	hasFinalizer bool
+	registryID   uintptr
 
 	Events  chan []Event
 	Paths   []string
@@ -174,6 +181,40 @@ type EventStream struct {
 	Resume  bool
 	Latency time.Duration
 	Device  int32
+}
+
+// eventStreamRegistry is a lookup table for EventStream references passed to
+// cgo. In Go 1.6+ passing a Go pointer to a Go pointer to cgo is not allowed.
+// To get around this issue, we pass only an integer.
+type eventStreamRegistry struct {
+	sync.Mutex
+	m map[uintptr]*EventStream
+	i uintptr
+}
+
+var registry = eventStreamRegistry{m: map[uintptr]*EventStream{}}
+
+func (r *eventStreamRegistry) Add(e *EventStream) uintptr {
+	r.Lock()
+	defer r.Unlock()
+
+	r.i++
+	r.m[r.i] = e
+	return r.i
+}
+
+func (r *eventStreamRegistry) Get(i uintptr) *EventStream {
+	r.Lock()
+	defer r.Unlock()
+
+	return r.m[i]
+}
+
+func (r *eventStreamRegistry) Delete(i uintptr) {
+	r.Lock()
+	defer r.Unlock()
+
+	delete(r.m, i)
 }
 
 func finalizer(es *EventStream) {
@@ -205,12 +246,14 @@ func (es *EventStream) Start() {
 		es.Events = make(chan []Event)
 	}
 
-	context := C.FSEventStreamContext{info: unsafe.Pointer(es)}
+	es.registryID = registry.Add(es)
+	context := C.FSEventStreamContext{}
+	info := C.uintptr_t(es.registryID)
 	latency := C.CFTimeInterval(float64(es.Latency) / float64(time.Second))
 	if es.Device != 0 {
-		es.stream = C.EventStreamCreateRelativeToDevice(&context, C.dev_t(es.Device), cPaths, since, latency, C.FSEventStreamCreateFlags(es.Flags))
+		es.stream = C.EventStreamCreateRelativeToDevice(&context, info, C.dev_t(es.Device), cPaths, since, latency, C.FSEventStreamCreateFlags(es.Flags))
 	} else {
-		es.stream = C.EventStreamCreate(&context, cPaths, since, latency, C.FSEventStreamCreateFlags(es.Flags))
+		es.stream = C.EventStreamCreate(&context, info, cPaths, since, latency, C.FSEventStreamCreateFlags(es.Flags))
 	}
 
 	go func() {
@@ -243,8 +286,10 @@ func (es *EventStream) Stop() {
 		C.FSEventStreamInvalidate(es.stream)
 		C.FSEventStreamRelease(es.stream)
 		C.CFRunLoopStop(es.rlref)
+		registry.Delete(es.registryID)
 	}
 	es.stream = nil
+	es.registryID = 0
 }
 
 // Restart listening.
