@@ -97,7 +97,7 @@ func createPaths(paths []string) (C.CFArrayRef, error) {
 			errs = append(errs, err)
 		}
 		cpath := C.CString(p)
-		// defer C.free(unsafe.Pointer(cpath))
+		defer C.free(unsafe.Pointer(cpath))
 
 		str := C.CFStringCreateWithCString(nil, cpath, C.kCFStringEncodingUTF8)
 		C.CFArrayAppendValue(cPaths, unsafe.Pointer(str))
@@ -114,7 +114,7 @@ func (es *EventStream) start(paths []string, callbackInfo uintptr) {
 	if err != nil {
 		log.Printf("Error creating paths: %s", err)
 	}
-	// defer C.CFRelease(C.CFTypeRef(cPaths))
+	defer C.CFRelease(C.CFTypeRef(cPaths))
 
 	since := C.FSEventStreamEventId(EventIDSinceNow)
 	if es.Resume {

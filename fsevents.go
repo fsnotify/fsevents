@@ -121,8 +121,8 @@ type EventStream struct {
 // To get around this issue, we pass only an integer.
 type eventStreamRegistry struct {
 	sync.Mutex
-	m map[uintptr]*EventStream
-	i uintptr
+	m      map[uintptr]*EventStream
+	lastID uintptr
 }
 
 var registry = eventStreamRegistry{m: map[uintptr]*EventStream{}}
@@ -131,9 +131,9 @@ func (r *eventStreamRegistry) Add(e *EventStream) uintptr {
 	r.Lock()
 	defer r.Unlock()
 
-	r.i++
-	r.m[r.i] = e
-	return r.i
+	r.lastID++
+	r.m[r.lastID] = e
+	return r.lastID
 }
 
 func (r *eventStreamRegistry) Get(i uintptr) *EventStream {
