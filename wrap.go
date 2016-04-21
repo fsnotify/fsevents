@@ -109,6 +109,14 @@ func createPaths(paths []string) (C.CFArrayRef, error) {
 	return cPaths, err
 }
 
+// CFArrayLen retrieves the length of CFArray type
+// See https://developer.apple.com/library/mac/documentation/CoreFoundation/Reference/CFArrayRef/#//apple_ref/c/func/CFArrayGetCount
+func CFArrayLen(ref C.CFArrayRef) int {
+	// FIXME: this will probably crash on 32bit, untested
+	// requires OS X v10.0
+	return int(C.CFArrayGetCount(ref))
+}
+
 func (es *EventStream) start(paths []string, callbackInfo uintptr) {
 	cPaths, err := createPaths(paths)
 	if err != nil {
