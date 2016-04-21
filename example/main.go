@@ -13,15 +13,19 @@ import (
 )
 
 func main() {
-	dev, _ := fsevents.DeviceForPath("/tmp")
+	path := "/tmp"
+	dev, err := fsevents.DeviceForPath(path)
+	if err != nil {
+		log.Println("Failed to retrieve device for path:", err)
+	}
 	log.Print(dev)
 	log.Println(fsevents.EventIDForDeviceBeforeTime(dev, time.Now()))
 
 	es := &fsevents.EventStream{
-		Paths:   []string{"/tmp"},
+		Paths:   []string{path},
 		Latency: 500 * time.Millisecond,
-		// Device:  dev,
-		Flags: fsevents.FileEvents | fsevents.WatchRoot}
+		Device:  dev,
+		Flags:   fsevents.FileEvents | fsevents.WatchRoot}
 	es.Start()
 	ec := es.Events
 
