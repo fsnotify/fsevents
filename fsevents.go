@@ -106,6 +106,7 @@ type EventStream struct {
 	rlref        CFRunLoopRef
 	hasFinalizer bool
 	registryID   uintptr
+	uuid         string
 
 	Events  chan []Event
 	Paths   []string
@@ -113,7 +114,8 @@ type EventStream struct {
 	EventID uint64
 	Resume  bool
 	Latency time.Duration
-	Device  int32
+	// syscall represents this with an int32
+	Device int32
 }
 
 // eventStreamRegistry is a lookup table for EventStream references passed to
@@ -157,11 +159,11 @@ func (es *EventStream) Start() {
 	// in C callback
 	cbInfo := registry.Add(es)
 	es.registryID = cbInfo
+	es.uuid = GetDeviceUUID(es.Device)
 	es.start(es.Paths, cbInfo)
 	if es.Events == nil {
 		es.Events = make(chan []Event)
 	}
-
 }
 
 // Flush events that have occurred but haven't been delivered.

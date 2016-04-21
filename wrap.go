@@ -28,13 +28,14 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"time"
 	"unsafe"
 )
 
-// EventIDSinceNow is a sentinel to begin watching events "since now".
-const EventIDSinceNow = uint64(C.kFSEventStreamEventIdSinceNow + (1 << 64))
+// eventIDSinceNow is a sentinel to begin watching events "since now".
+const eventIDSinceNow = uint64(C.kFSEventStreamEventIdSinceNow + (1 << 64))
 
 func lastEventID() uint64 {
 	return uint64(C.FSEventsGetCurrentEventId())
@@ -59,14 +60,12 @@ func fsevtCallback(stream C.FSEventStreamRef, info uintptr, numEvents C.size_t, 
 	ids := (*[1 << 30]C.FSEventStreamEventId)(unsafe.Pointer(cids))[:l:l]
 	flags := (*[1 << 30]C.FSEventStreamEventFlags)(unsafe.Pointer(cflags))[:l:l]
 	for i := range events {
-		fmt.Println("round", i)
 		events[i] = Event{
 			Path:  C.GoString(paths[i]),
 			Flags: EventFlags(flags[i]),
 			ID:    uint64(ids[i]),
 		}
 		es.EventID = uint64(ids[i])
-		fmt.Printf("event % #v\n", events[i])
 	}
 
 	es.Events <- events
@@ -75,13 +74,86 @@ func fsevtCallback(stream C.FSEventStreamRef, info uintptr, numEvents C.size_t, 
 // FSEventStreamRef wraps C.FSEventStreamRef
 type FSEventStreamRef C.FSEventStreamRef
 
+// GetStreamRefEventID retrieves the last EventID from the ref
+func GetStreamRefEventID(f FSEventStreamRef) uint64 {
+	return uint64(C.FSEventStreamGetLatestEventId(f))
+}
+
+// GetStreamRefDeviceID retrieves the device ID the stream is watching
+func GetStreamRefDeviceID(f FSEventStreamRef) int32 {
+	return int32(C.FSEventStreamGetDeviceBeingWatched(f))
+}
+
+// GetStreamRefDescription retrieves debugging description information
+// about the StreamRef
+func GetStreamRefDescription(f FSEventStreamRef) string {
+	return cfStringToGoString(C.FSEventStreamCopyDescription(f))
+}
+
+// GetStreamRefPaths returns a copy of the paths being watched by
+// this stream
+func GetStreamRefPaths(f FSEventStreamRef) []string {
+	arr := C.FSEventStreamCopyPathsBeingWatched(f)
+	l := CFArrayLen(arr)
+
+	ss := make([]string, l)
+	for i := range ss {
+		void := C.CFArrayGetValueAtIndex(arr, C.CFIndex(i))
+		ss[i] = cfStringToGoString(C.CFStringRef(void))
+	}
+	return ss
+}
+
+// GetDeviceUUID retrieves the UUID required to identify an EventID
+// in the FSEvents database
+func GetDeviceUUID(deviceID int32) string {
+	uuid := C.FSEventsCopyUUIDForDevice(C.dev_t(deviceID))
+	if uuid == nil {
+		return ""
+	}
+	return cfStringToGoString(C.CFUUIDCreateString(nil, uuid))
+}
+
+func cfStringToGoString(cfs C.CFStringRef) string {
+	if cfs == nil {
+		return ""
+	}
+	cfStr := C.CFStringCreateCopy(nil, cfs)
+	length := C.CFStringGetLength(cfStr)
+	if length == 0 {
+		// short-cut for empty strings
+		return ""
+	}
+	cfRange := C.CFRange{0, length}
+	enc := C.CFStringEncoding(C.kCFStringEncodingUTF8)
+	// first find the buffer size necessary
+	var usedBufLen C.CFIndex
+	if C.CFStringGetBytes(cfStr, cfRange, enc, 0, C.false, nil, 0, &usedBufLen) == 0 {
+		return ""
+	}
+
+	bs := make([]byte, usedBufLen)
+	buf := (*C.UInt8)(unsafe.Pointer(&bs[0]))
+	if C.CFStringGetBytes(cfStr, cfRange, enc, 0, C.false, buf, usedBufLen, nil) == 0 {
+		return ""
+	}
+
+	// Create a string (byte array) backed by C byte array
+	header := (*reflect.SliceHeader)(unsafe.Pointer(&bs))
+	strHeader := &reflect.StringHeader{
+		Data: header.Data,
+		Len:  header.Len,
+	}
+	return *(*string)(unsafe.Pointer(strHeader))
+}
+
 // CFRunLoopRef wraps C.CFRunLoopRef
 type CFRunLoopRef C.CFRunLoopRef
 
 // EventIDForDeviceBeforeTime returns an event ID before a given time.
-func EventIDForDeviceBeforeTime(dev int32, before time.Time) uint64 {
+func EventIDForDeviceBeforeTime(dev int32, before time.Time) uint32 {
 	tm := C.CFAbsoluteTime(before.Unix())
-	return uint64(C.FSEventsGetLastEventIdForDeviceBeforeTime(C.dev_t(dev), tm))
+	return uint32(C.FSEventsGetLastEventIdForDeviceBeforeTime(C.dev_t(dev), tm))
 }
 
 // createPaths accepts the user defined set of paths and returns FSEvents
@@ -117,28 +189,39 @@ func CFArrayLen(ref C.CFArrayRef) int {
 	return int(C.CFArrayGetCount(ref))
 }
 
-func (es *EventStream) start(paths []string, callbackInfo uintptr) {
+func setupStream(paths []string, flags CreateFlags, callbackInfo uintptr, eventID uint64, latency time.Duration, deviceID int32) FSEventStreamRef {
 	cPaths, err := createPaths(paths)
 	if err != nil {
 		log.Printf("Error creating paths: %s", err)
 	}
 	defer C.CFRelease(C.CFTypeRef(cPaths))
 
-	since := C.FSEventStreamEventId(EventIDSinceNow)
-	if es.Resume {
-		since = C.FSEventStreamEventId(es.EventID)
-	}
-
+	since := C.FSEventStreamEventId(eventID)
 	context := C.FSEventStreamContext{}
 	info := C.uintptr_t(callbackInfo)
-	latency := C.CFTimeInterval(float64(es.Latency) / float64(time.Second))
-	if es.Device != 0 {
-		ref := C.EventStreamCreateRelativeToDevice(&context, info, C.dev_t(es.Device), cPaths, since, latency, C.FSEventStreamCreateFlags(es.Flags))
-		es.stream = FSEventStreamRef(ref)
+	cfinv := C.CFTimeInterval(float64(latency) / float64(time.Second))
+
+	var ref C.FSEventStreamRef
+	if deviceID != 0 {
+		ref = C.EventStreamCreateRelativeToDevice(&context, info,
+			C.dev_t(deviceID), cPaths, since, cfinv,
+			C.FSEventStreamCreateFlags(flags))
 	} else {
-		ref := C.EventStreamCreate(&context, info, cPaths, since, latency, C.FSEventStreamCreateFlags(es.Flags))
-		es.stream = FSEventStreamRef(ref)
+		ref = C.EventStreamCreate(&context, info, cPaths, since,
+			cfinv, C.FSEventStreamCreateFlags(flags))
 	}
+
+	return FSEventStreamRef(ref)
+}
+
+func (es *EventStream) start(paths []string, callbackInfo uintptr) {
+
+	since := eventIDSinceNow
+	if es.Resume {
+		since = es.EventID
+	}
+
+	es.stream = setupStream(paths, es.Flags, callbackInfo, since, es.Latency, es.Device)
 
 	go func() {
 		runtime.LockOSThread()

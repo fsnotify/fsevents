@@ -4,6 +4,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"log"
 	"os"
 	"runtime"
@@ -28,6 +29,8 @@ func main() {
 		Flags:   fsevents.FileEvents | fsevents.WatchRoot}
 	es.Start()
 	ec := es.Events
+
+	fmt.Println("Device UUID", fsevents.GetDeviceUUID(dev))
 
 	go func() {
 		for msg := range ec {
