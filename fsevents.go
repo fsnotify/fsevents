@@ -5,6 +5,7 @@ package fsevents
 
 /*
 #cgo LDFLAGS: -framework CoreServices
+
 #include <CoreServices/CoreServices.h>
 #include <sys/stat.h>
 
@@ -23,8 +24,10 @@ static FSEventStreamRef EventStreamCreate(FSEventStreamContext * context, uintpt
 	context->info = (void*) info;
 	return FSEventStreamCreate(NULL, (FSEventStreamCallback) fsevtCallback, context, paths, since, latency, flags);
 }
+
 */
 import "C"
+
 import (
 	"path/filepath"
 	"runtime"
@@ -33,9 +36,6 @@ import (
 	"time"
 	"unsafe"
 )
-
-// EventIdSinceNow is a sentinel to begin watching events "since now".
-const EventIDSinceNow = uint64(C.kFSEventStreamEventIdSinceNow + (1 << 64))
 
 // CreateFlags for creating a New stream.
 type CreateFlags uint32
@@ -108,33 +108,6 @@ type Event struct {
 	ID    uint64
 }
 
-//export fsevtCallback
-func fsevtCallback(stream C.FSEventStreamRef, info uintptr, numEvents C.size_t, paths **C.char, flags *C.FSEventStreamEventFlags, ids *C.FSEventStreamEventId) {
-	events := make([]Event, int(numEvents))
-
-	es := registry.Get(info)
-	if es == nil {
-		return
-	}
-
-	for i := 0; i < int(numEvents); i++ {
-		cpaths := uintptr(unsafe.Pointer(paths)) + (uintptr(i) * unsafe.Sizeof(*paths))
-		cpath := *(**C.char)(unsafe.Pointer(cpaths))
-
-		cflags := uintptr(unsafe.Pointer(flags)) + (uintptr(i) * unsafe.Sizeof(*flags))
-		cflag := *(*C.FSEventStreamEventFlags)(unsafe.Pointer(cflags))
-
-		cids := uintptr(unsafe.Pointer(ids)) + (uintptr(i) * unsafe.Sizeof(*ids))
-		cid := *(*C.FSEventStreamEventId)(unsafe.Pointer(cids))
-
-		events[i] = Event{Path: C.GoString(cpath), Flags: EventFlags(cflag), ID: uint64(cid)}
-		// Record the latest EventID to support resuming the stream
-		es.EventID = uint64(cid)
-	}
-
-	es.Events <- events
-}
-
 // LatestEventID returns the most recently generated event ID, system-wide.
 func LatestEventID() uint64 {
 	return uint64(C.FSEventsGetCurrentEventId())
@@ -169,8 +142,8 @@ func EventIDForDeviceBeforeTime(dev int32, before time.Time) uint64 {
 
 // EventStream is the primary interface to FSEvents.
 type EventStream struct {
-	stream       C.FSEventStreamRef
-	rlref        C.CFRunLoopRef
+	stream       FSEventStreamRef
+	rlref        CFRunLoopRef
 	hasFinalizer bool
 	registryID   uintptr
 
@@ -251,14 +224,16 @@ func (es *EventStream) Start() {
 	info := C.uintptr_t(es.registryID)
 	latency := C.CFTimeInterval(float64(es.Latency) / float64(time.Second))
 	if es.Device != 0 {
-		es.stream = C.EventStreamCreateRelativeToDevice(&context, info, C.dev_t(es.Device), cPaths, since, latency, C.FSEventStreamCreateFlags(es.Flags))
+		ref := C.EventStreamCreateRelativeToDevice(&context, info, C.dev_t(es.Device), cPaths, since, latency, C.FSEventStreamCreateFlags(es.Flags))
+		es.stream = FSEventStreamRef(ref)
 	} else {
-		es.stream = C.EventStreamCreate(&context, info, cPaths, since, latency, C.FSEventStreamCreateFlags(es.Flags))
+		ref := C.EventStreamCreate(&context, info, cPaths, since, latency, C.FSEventStreamCreateFlags(es.Flags))
+		es.stream = FSEventStreamRef(ref)
 	}
 
 	go func() {
 		runtime.LockOSThread()
-		es.rlref = C.CFRunLoopGetCurrent()
+		es.rlref = CFRunLoopRef(C.CFRunLoopGetCurrent())
 		C.FSEventStreamScheduleWithRunLoop(es.stream, es.rlref, C.kCFRunLoopDefaultMode)
 		C.FSEventStreamStart(es.stream)
 		C.CFRunLoopRun()
