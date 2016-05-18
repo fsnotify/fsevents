@@ -256,11 +256,14 @@ func (es *EventStream) Start() {
 		es.stream = C.EventStreamCreate(&context, info, cPaths, since, latency, C.FSEventStreamCreateFlags(es.Flags))
 	}
 
+	started := make(chan struct{})
+
 	go func() {
 		runtime.LockOSThread()
 		es.rlref = C.CFRunLoopGetCurrent()
 		C.FSEventStreamScheduleWithRunLoop(es.stream, es.rlref, C.kCFRunLoopDefaultMode)
 		C.FSEventStreamStart(es.stream)
+		close(started)
 		C.CFRunLoopRun()
 	}()
 
@@ -268,6 +271,8 @@ func (es *EventStream) Start() {
 		runtime.SetFinalizer(es, finalizer)
 		es.hasFinalizer = true
 	}
+
+	<-started
 }
 
 // Flush events that have occurred but haven't been delivered.
