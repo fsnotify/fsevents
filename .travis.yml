@@ -10,6 +10,7 @@ matrix:
   fast_finish: true
 
 before_script:
+  - sw_vers
   - go get -u github.com/golang/lint/golint
 
 script:
@@ -19,6 +20,9 @@ after_script:
   - test -z "$(gofmt -s -l -w . | tee /dev/stderr)"
   - test -z "$(golint ./...     | tee /dev/stderr)"
   - go vet ./...
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
 
 notifications:
   email: false
