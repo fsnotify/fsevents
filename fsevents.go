@@ -1,6 +1,6 @@
 // +build darwin
 
-// Package fsevents provides file system notifications on OS X.
+// Package fsevents provides file system notifications on macOS.
 package fsevents
 
 /*
@@ -52,11 +52,11 @@ const (
 	// WatchRoot for a change to occur to a directory along the path being watched.
 	WatchRoot
 
-	// IgnoreSelf doesn't send events triggered by the current process (OS X 10.6+).
+	// IgnoreSelf doesn't send events triggered by the current process (macOS 10.6+).
 	IgnoreSelf
 
 	// FileEvents sends events about individual files, generating significantly
-	// more events (OS X 10.7+) than directory level notifications.
+	// more events (macOS 10.7+) than directory level notifications.
 	FileEvents
 )
 
