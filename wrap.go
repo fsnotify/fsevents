@@ -37,7 +37,8 @@ import (
 // eventIDSinceNow is a sentinel to begin watching events "since now".
 const eventIDSinceNow = uint64(C.kFSEventStreamEventIdSinceNow + (1 << 64))
 
-func lastEventID() uint64 {
+// LatestEventID returns the most recently generated event ID, system-wide.
+func LatestEventID() uint64 {
 	return uint64(C.FSEventsGetCurrentEventId())
 }
 
@@ -94,7 +95,7 @@ func GetStreamRefDescription(f FSEventStreamRef) string {
 // this stream
 func GetStreamRefPaths(f FSEventStreamRef) []string {
 	arr := C.FSEventStreamCopyPathsBeingWatched(f)
-	l := CFArrayLen(arr)
+	l := cfArrayLen(arr)
 
 	ss := make([]string, l)
 	for i := range ss {
@@ -183,7 +184,7 @@ func createPaths(paths []string) (C.CFArrayRef, error) {
 
 // CFArrayLen retrieves the length of CFArray type
 // See https://developer.apple.com/library/mac/documentation/CoreFoundation/Reference/CFArrayRef/#//apple_ref/c/func/CFArrayGetCount
-func CFArrayLen(ref C.CFArrayRef) int {
+func cfArrayLen(ref C.CFArrayRef) int {
 	// FIXME: this will probably crash on 32bit, untested
 	// requires OS X v10.0
 	return int(C.CFArrayGetCount(ref))

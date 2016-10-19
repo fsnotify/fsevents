@@ -80,11 +80,6 @@ type Event struct {
 	ID    uint64
 }
 
-// LatestEventID returns the most recently generated event ID, system-wide.
-func LatestEventID() uint64 {
-	return lastEventID()
-}
-
 // DeviceForPath returns the device ID for the specified volume.
 func DeviceForPath(path string) (int32, error) {
 	stat := syscall.Stat_t{}
@@ -98,9 +93,10 @@ func DeviceForPath(path string) (int32, error) {
 // You can provide your own event channel if you wish (or one will be
 // created on Start).
 //
-// es := &EventStream{Paths: []string{"/tmp"}, Flags: 0}
-// es.Start()
-// es.Stop()
+//   es := &EventStream{Paths: []string{"/tmp"}, Flags: 0}
+//   es.Start()
+//   es.Stop()
+//   ...
 type EventStream struct {
 	stream       FSEventStreamRef
 	rlref        CFRunLoopRef
