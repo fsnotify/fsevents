@@ -13,8 +13,8 @@ func TestCreatePath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if e := 2; CFArrayLen(ref) != e {
-		t.Errorf("got: %d wanted: %d", CFArrayLen(ref), e)
+	if e := 2; cfArrayLen(ref) != e {
+		t.Errorf("got: %d wanted: %d", cfArrayLen(ref), e)
 	}
 }
 
@@ -23,8 +23,6 @@ func TestEventStream(t *testing.T) {
 	did := int32(12)
 	paths := []string{"/a", "/b"}
 	ref := setupStream(paths, 0, 0, eid, time.Duration(0), did)
-
-	t.Log(GetStreamRefDescription(ref))
 
 	if e := GetStreamRefEventID(ref); eid != e {
 		t.Errorf("got: %d wanted: %d", e, eid)
