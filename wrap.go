@@ -152,9 +152,9 @@ func cfStringToGoString(cfs C.CFStringRef) string {
 type CFRunLoopRef C.CFRunLoopRef
 
 // EventIDForDeviceBeforeTime returns an event ID before a given time.
-func EventIDForDeviceBeforeTime(dev int32, before time.Time) uint32 {
+func EventIDForDeviceBeforeTime(dev int32, before time.Time) uint64 {
 	tm := C.CFAbsoluteTime(before.Unix())
-	return uint32(C.FSEventsGetLastEventIdForDeviceBeforeTime(C.dev_t(dev), tm))
+	return uint64(C.FSEventsGetLastEventIdForDeviceBeforeTime(C.dev_t(dev), tm))
 }
 
 // createPaths accepts the user defined set of paths and returns FSEvents
