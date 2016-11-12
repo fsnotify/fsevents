@@ -16,11 +16,11 @@ import (
 func main() {
 	path, err := ioutil.TempDir("", "fsexample")
 	if err != nil {
-		log.Fatalf("Failed to create TempDir: ", err)
+		log.Fatalf("Failed to create TempDir: %v", err)
 	}
 	dev, err := fsevents.DeviceForPath(path)
 	if err != nil {
-		log.Fatalf("Failed to retrieve device for path:", err)
+		log.Fatalf("Failed to retrieve device for path: %v", err)
 	}
 	log.Print(dev)
 	log.Println(fsevents.EventIDForDeviceBeforeTime(dev, time.Now()))
