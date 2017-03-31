@@ -1,4 +1,4 @@
-// +buid darwin
+// +build darwin
 
 package fsevents
 
