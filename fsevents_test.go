@@ -5,6 +5,7 @@ package fsevents
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -29,4 +30,23 @@ func TestBasicExample(t *testing.T) {
 	}
 
 	es.Start()
+
+	wait := make(chan Event)
+	go func() {
+		for msg := range es.Events {
+			for _, event := range msg {
+				t.Logf("Event: %#v", event)
+				wait <- event
+				es.Stop()
+				return
+			}
+		}
+	}()
+
+	err = ioutil.WriteFile(filepath.Join(path, "example.txt"), []byte("example"), 0700)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	<-wait
 }
