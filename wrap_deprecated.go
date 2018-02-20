@@ -35,7 +35,14 @@ import (
 )
 
 // eventIDSinceNow is a sentinel to begin watching events "since now".
-const eventIDSinceNow = uint64(C.kFSEventStreamEventIdSinceNow + (1 << 64))
+// NOTE: Go 1.9.2 broke compatibility here, for 1.9.1 and earlier we did:
+//   uint64(C.kFSEventStreamEventIdSinceNow + (1 << 64))
+// But 1.9.2+ complains about overflow and requires:
+//   uint64(C.kFSEventStreamEventIdSinceNow)
+// There does not seem to be an easy way to rectify, so hardcoding the value
+// here from FSEvents.h:
+//   kFSEventStreamEventIdSinceNow = 0xFFFFFFFFFFFFFFFFULL
+const eventIDSinceNow = uint64(0xFFFFFFFFFFFFFFFF)
 
 // LatestEventID returns the most recently generated event ID, system-wide.
 func LatestEventID() uint64 {
