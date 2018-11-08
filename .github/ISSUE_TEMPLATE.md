@@ -1,4 +1,4 @@
-Before reporting an issue, please ensure you are using the latest release of fsnotify.
+Before reporting an issue, please ensure you are using the latest release of fsevents.
 
 ### Which version of macOS are you using?
 

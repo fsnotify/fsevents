@@ -53,3 +53,12 @@ func TestDeviceID(t *testing.T) {
 		t.Fatal("failed to read device ID")
 	}
 }
+
+func TestEventIDSinceNow(t *testing.T) {
+	// from FSEvents.h:
+	//   kFSEventStreamEventIdSinceNow = 0xFFFFFFFFFFFFFFFFULL
+	const expected = uint64(0xFFFFFFFFFFFFFFFF)
+	if eventIDSinceNow != expected {
+		t.Errorf("got: %v wanted: %v", eventIDSinceNow, expected)
+	}
+}
