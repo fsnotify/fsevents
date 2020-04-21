@@ -1,0 +1,53 @@
+name: Unit-tester
+on:
+  push:
+    branches:
+      - preveil
+  pull_request:
+
+jobs:
+
+  test:
+    name: Unit tests
+
+    runs-on: macos-latest
+
+    steps:
+    - name: Set up Go 1.13
+      uses: actions/setup-go@v1
+      with:
+        go-version: 1.13
+      id: go
+
+    # - name: Install aws cli
+    #   run: |
+    #     pip install wheel
+    #     pip install awscli
+
+    # - name: Configure AWS Credentials
+    #   uses: aws-actions/configure-aws-credentials@v1
+    #   with:
+    #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    #     aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+
+
+    - name: Check out code into the Go module directory
+      if: github.event_name == 'push'
+      uses: actions/checkout@v2
+
+    - name: Checkout pr's head commit
+      if: github.event_name == 'pull_request'
+      uses: actions/checkout@v2
+      with:
+        # on pull_request, we don't want to build on
+        # the merged commit
+        ref: ${{ github.event.pull_request.head.sha }}
+
+    - name: Run unit tests
+      run: |
+        # go get -t -v ./...
+        go test ./... -v -race
+
+    - name: Vetting code quality
+      run: go vet
