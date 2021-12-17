@@ -47,6 +47,9 @@ func TestBasicExample(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	<-wait
+	select{
+	case <-wait:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for event")
+	}
 }

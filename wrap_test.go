@@ -24,15 +24,15 @@ func TestEventStream(t *testing.T) {
 	paths := []string{"/a", "/b"}
 	ref := setupStream(paths, 0, 0, eid, time.Duration(0), did)
 
-	if e := GetStreamRefEventID(ref); eid != e {
+	if e := getStreamRefEventID(ref); eid != e {
 		t.Errorf("got: %d wanted: %d", e, eid)
 	}
 
-	if e := GetStreamRefDeviceID(ref); did != e {
+	if e := getStreamRefDeviceID(ref); did != e {
 		t.Errorf("got: %d wanted: %d", e, did)
 	}
 
-	spaths := GetStreamRefPaths(ref)
+	spaths := getStreamRefPaths(ref)
 	for i := range paths {
 		if paths[i] != spaths[i] {
 			t.Errorf("pos %d got: %s wanted: %s", i, spaths[i], paths[i])
