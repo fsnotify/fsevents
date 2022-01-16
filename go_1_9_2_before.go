@@ -1,3 +1,4 @@
+//go:build darwin && !go1.9.2
 // +build darwin,!go1.9.2
 
 package fsevents
