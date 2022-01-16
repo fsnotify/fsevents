@@ -1,3 +1,4 @@
+//go:build darwin
 // +build darwin
 
 // Package fsevents provides file system notifications on macOS.
