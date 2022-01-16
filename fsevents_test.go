@@ -15,6 +15,10 @@ func TestBasicExample(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	path, err = filepath.EvalSymlinks(path)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer os.RemoveAll(path)
 
 	dev, err := DeviceForPath(path)
