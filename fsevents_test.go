@@ -34,7 +34,10 @@ func TestBasicExample(t *testing.T) {
 		Flags:   FileEvents,
 	}
 
-	es.Start()
+	err = es.Start()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	wait := make(chan Event)
 	go func() {
