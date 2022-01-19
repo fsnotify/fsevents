@@ -6,6 +6,13 @@
 
 **Warning:** This API should be considered unstable.
 
+## Caveats
+
+Known caveats of the macOS FSEvents API which this package uses under the hood:
+
+ - FSEvents returns events for the named path only, so unless you want to follow updates to a symlink itself (unlikely), you should use `filepath.EvalSymlinks` to get the target path to watch.
+ - There is an internal macOS limitation of 4096 watched paths. Watching more paths will result in an error calling `Start()`. Note that FSEvents is intended to be a recursive watcher by design, it is actually more efficient to watch the containing path than each file in a large directory.
+
 ## Contributing
 
 Request features and report bugs using the [GitHub Issue Tracker](https://github.com/fsnotify/fsevents/issues).
