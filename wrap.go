@@ -7,6 +7,11 @@ package fsevents
 #cgo LDFLAGS: -framework CoreServices
 #include <CoreServices/CoreServices.h>
 #include <sys/stat.h>
+#include <sys/param.h>
+#include <sys/ucred.h>
+#include <sys/mount.h>
+
+int getfsstat(struct statfs *buf, int bufsize, int flags);
 
 static CFArrayRef ArrayCreateMutable(int len) {
 	return CFArrayCreateMutable(NULL, len, &kCFTypeArrayCallBacks);
@@ -23,6 +28,8 @@ static FSEventStreamRef EventStreamCreate(FSEventStreamContext * context, uintpt
 	context->info = (void*) info;
 	return FSEventStreamCreate(NULL, (FSEventStreamCallback) fsevtCallback, context, paths, since, latency, flags);
 }
+
+
 */
 import "C"
 import (
@@ -31,6 +38,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strings"
+	"syscall"
 	"time"
 	"unsafe"
 )
@@ -150,22 +159,72 @@ func EventIDForDeviceBeforeTime(dev int32, before time.Time) uint64 {
 	return uint64(C.FSEventsGetLastEventIdForDeviceBeforeTime(C.dev_t(dev), tm))
 }
 
+func charsToString(buf []int8) string {
+	ret := make([]byte, 0, len(buf))
+	for _, c := range buf {
+		if c == 0 {
+			continue
+		}
+		ret = append(ret, byte(c))
+	}
+	return string(ret)
+}
+
+func getRelativePathsForDevices() (map[int32]string, error) {
+	num, err := syscall.Getfsstat(nil, C.MNT_NOWAIT)
+	if err != nil {
+		return nil, err
+	}
+
+	buf := make([]syscall.Statfs_t, num)
+	_, err = syscall.Getfsstat(buf, C.MNT_NOWAIT)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := make(map[int32]string)
+	for _, fs := range buf[:num] {
+		ret[fs.Fsid.Val[0]] = charsToString(fs.Mntonname[:])
+	}
+
+	return ret, nil
+}
+
 // createPaths accepts the user defined set of paths and returns FSEvents
 // compatible array of paths
-func createPaths(paths []string) (C.CFArrayRef, error) {
-	cPaths := C.ArrayCreateMutable(C.int(len(paths)))
-	var errs []error
-	for _, path := range paths {
-		p, err := filepath.Abs(path)
-		if err != nil {
-			// hack up some reporting errors, but don't prevent execution
-			// because of them
-			errs = append(errs, err)
+func createPaths(paths []string, deviceID int32) (C.CFArrayRef, error) {
+	var (
+		cPaths        = C.ArrayCreateMutable(C.int(len(paths)))
+		relativePaths map[int32]string
+		errs          []error
+		str           C.CFStringRef
+		p, path       string
+		err           error
+	)
+
+	if deviceID > 0 {
+		relativePaths, err = getRelativePathsForDevices()
+	}
+	for _, path = range paths {
+		if devicePath, ok := relativePaths[deviceID]; ok {
+			// Ensure each path is stripped of it's device's mount path
+			if strings.HasPrefix(filepath.Clean(path), filepath.Clean(devicePath)) {
+				path = strings.TrimLeft(filepath.Clean(path), filepath.Clean(devicePath))
+			}
+			str = makeCFString(path)
+		} else {
+			// Use absolute path
+			p, err = filepath.Abs(path)
+			if err != nil {
+				// hack up some reporting errors, but don't prevent execution
+				// because of them
+				errs = append(errs, err)
+			}
+			str = makeCFString(p)
 		}
-		str := makeCFString(p)
 		C.CFArrayAppendValue(C.CFMutableArrayRef(cPaths), unsafe.Pointer(str))
 	}
-	var err error
+
 	if len(errs) > 0 {
 		err = fmt.Errorf("%q", errs)
 	}
@@ -188,7 +247,9 @@ func cfArrayLen(ref C.CFArrayRef) int {
 }
 
 func setupStream(paths []string, flags CreateFlags, callbackInfo uintptr, eventID uint64, latency time.Duration, deviceID int32) FSEventStreamRef {
-	cPaths, err := createPaths(paths)
+
+	// Use relative paths for devices since the device path is already present; issue #49
+	cPaths, err := createPaths(paths, deviceID)
 	if err != nil {
 		log.Printf("Error creating paths: %s", err)
 	}
