@@ -15,7 +15,7 @@ import (
 )
 
 func main() {
-	path, err := ioutil.TempDir("/Volumes/test/", "fsexample")
+	path, err := ioutil.TempDir("", "fsexample")
 	if err != nil {
 		log.Fatalf("Failed to create TempDir: %v", err)
 	}
