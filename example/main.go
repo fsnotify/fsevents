@@ -19,29 +19,41 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create TempDir: %v", err)
 	}
+	rootDev, err := fsevents.DeviceForPath("/")
+	if err != nil {
+		log.Fatalf("Failed to retrieve device for root path: %v", err)
+	}
+
 	dev, err := fsevents.DeviceForPath(path)
 	if err != nil {
 		log.Fatalf("Failed to retrieve device for path: %v", err)
 	}
-	log.Print(dev)
+	if dev == rootDev {
+		dev = 0
+	}
+
 	log.Println(fsevents.EventIDForDeviceBeforeTime(dev, time.Now()))
 
 	es := &fsevents.EventStream{
 		Paths:   []string{path},
 		Latency: 500 * time.Millisecond,
 		Device:  dev,
-		Flags:   fsevents.FileEvents | fsevents.WatchRoot}
-	es.Start()
-	ec := es.Events
+		Flags:   fsevents.FileEvents | fsevents.WatchRoot | fsevents.NoDefer}
+	if dev != 0 {
+		es.Resume = true
+		es.EventID = fsevents.EventIDForDeviceBeforeTime(dev, time.Now())
+	}
 
-	log.Println("Device UUID", fsevents.GetDeviceUUID(dev))
+	log.Printf("Device UUID %s, device ID: %d, path :%s\n", fsevents.GetDeviceUUID(dev), dev, path)
+	es.Start()
 
 	go func() {
-		for msg := range ec {
+		for msg := range es.Events {
 			for _, event := range msg {
 				logEvent(event)
 			}
 		}
+		log.Println("Finished logging events")
 	}()
 
 	in := bufio.NewReader(os.Stdin)
