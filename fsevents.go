@@ -159,7 +159,9 @@ func (es *EventStream) Start() {
 	// in C callback
 	cbInfo := registry.Add(es)
 	es.registryID = cbInfo
-	es.uuid = GetDeviceUUID(es.Device)
+	if es.Device != 0 {
+		es.uuid = GetDeviceUUID(es.Device)
+	}
 	es.start(es.Paths, cbInfo)
 }
 
