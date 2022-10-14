@@ -91,7 +91,6 @@ const (
 	FileEvents = CreateFlags(C.kFSEventStreamCreateFlagFileEvents)
 )
 
-
 // EventFlags passed to the FSEventStreamCallback function.
 // These correspond directly to the flags as described here:
 // https://developer.apple.com/documentation/coreservices/1455361-fseventstreameventflags
@@ -226,6 +225,24 @@ const (
 	// ItemIsSymlink indicates that the item is a symbolic link.
 	ItemIsSymlink = EventFlags(C.kFSEventStreamEventFlagItemIsSymlink)
 )
+
+const (
+	nullCFStringRef = C.CFStringRef(0)
+	nullCFUUIDRef   = C.CFUUIDRef(0)
+
+	// eventIDSinceNow is a sentinel to begin watching events "since now".
+	eventIDSinceNow = uint64(C.kFSEventStreamEventIdSinceNow)
+)
+
+// GetDeviceUUID retrieves the UUID required to identify an EventID
+// in the FSEvents database
+func GetDeviceUUID(deviceID int32) string {
+	uuid := C.FSEventsCopyUUIDForDevice(C.dev_t(deviceID))
+	if uuid == nullCFUUIDRef {
+		return ""
+	}
+	return cfStringToGoString(C.CFUUIDCreateString(C.kCFAllocatorDefault, uuid))
+}
 
 // LatestEventID returns the most recently generated event ID, system-wide.
 func LatestEventID() uint64 {
