@@ -2,7 +2,7 @@
 
 [![GoDoc](https://godoc.org/github.com/fsnotify/fsevents?status.svg)](https://godoc.org/github.com/fsnotify/fsevents) [![Reviewed by Hound](https://img.shields.io/badge/Reviewed_by-Hound-8E64B0.svg)](https://houndci.com)
 
-[FSEvents](https://developer.apple.com/library/mac/documentation/Darwin/Reference/FSEvents_Ref/) allows an application to monitor a whole file system or portion of it. FSEvents is only available on macOS.
+[FSEvents](https://developer.apple.com/documentation/coreservices/file_system_events) allows an application to monitor a whole file system or portion of it. FSEvents is only available on macOS.
 
 **Warning:** This API should be considered unstable.
 
