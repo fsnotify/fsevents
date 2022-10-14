@@ -136,7 +136,7 @@ func (r *eventStreamRegistry) Delete(i uintptr) {
 
 // Start listening to an event stream. This creates es.Events if it's not already
 // a valid channel.
-func (es *EventStream) Start() {
+func (es *EventStream) Start() error {
 	if es.Events == nil {
 		es.Events = make(chan []Event)
 	}
@@ -146,7 +146,13 @@ func (es *EventStream) Start() {
 	cbInfo := registry.Add(es)
 	es.registryID = cbInfo
 	es.uuid = GetDeviceUUID(es.Device)
-	es.start(es.Paths, cbInfo)
+	err := es.start(es.Paths, cbInfo)
+	if err != nil {
+		// Remove eventstream from the registry
+		registry.Delete(es.registryID)
+		es.registryID = 0
+	}
+	return err
 }
 
 // Flush flushes events that have occurred but haven't been delivered.
@@ -170,8 +176,8 @@ func (es *EventStream) Stop() {
 
 // Restart restarts the event listener. This
 // can be used to change the current watch flags.
-func (es *EventStream) Restart() {
+func (es *EventStream) Restart() error {
 	es.Stop()
 	es.Resume = true
-	es.Start()
+	return es.Start()
 }

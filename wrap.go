@@ -404,7 +404,7 @@ func setupStream(paths []string, flags CreateFlags, callbackInfo uintptr, eventI
 	return fsEventStreamRef(ref)
 }
 
-func (es *EventStream) start(paths []string, callbackInfo uintptr) {
+func (es *EventStream) start(paths []string, callbackInfo uintptr) error {
 
 	since := eventIDSinceNow
 	if es.Resume {
@@ -413,14 +413,23 @@ func (es *EventStream) start(paths []string, callbackInfo uintptr) {
 
 	es.stream = setupStream(paths, es.Flags, callbackInfo, since, es.Latency, es.Device)
 
-	started := make(chan struct{})
+	started := make(chan error)
 
 	go func() {
 		runtime.LockOSThread()
 		es.rlref = cfRunLoopRef(C.CFRunLoopGetCurrent())
 		C.CFRetain(C.CFTypeRef(es.rlref))
 		C.FSEventStreamScheduleWithRunLoop(es.stream, C.CFRunLoopRef(es.rlref), C.kCFRunLoopDefaultMode)
-		C.FSEventStreamStart(es.stream)
+		if C.FSEventStreamStart(es.stream) == 0 {
+			// cleanup stream and runloop
+			C.FSEventStreamInvalidate(es.stream)
+			C.FSEventStreamRelease(es.stream)
+			C.CFRelease(C.CFTypeRef(es.rlref))
+			es.stream = nil
+			started <- fmt.Errorf("failed to start eventstream")
+			close(started)
+			return
+		}
 		close(started)
 		C.CFRunLoopRun()
 	}()
@@ -432,7 +441,7 @@ func (es *EventStream) start(paths []string, callbackInfo uintptr) {
 		es.hasFinalizer = true
 	}
 
-	<-started
+	return <-started
 }
 
 func finalizer(es *EventStream) {
