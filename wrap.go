@@ -6,6 +6,7 @@ package fsevents
 /*
 #cgo LDFLAGS: -framework CoreServices
 #include <CoreServices/CoreServices.h>
+#include <dispatch/queue.h>
 #include <sys/stat.h>
 
 static CFArrayRef ArrayCreateMutable(int len) {
@@ -436,7 +437,10 @@ func (es *EventStream) start(paths []string, callbackInfo uintptr) error {
 		runtime.LockOSThread()
 		es.rlref = cfRunLoopRef(C.CFRunLoopGetCurrent())
 		C.CFRetain(C.CFTypeRef(es.rlref))
-		C.FSEventStreamScheduleWithRunLoop(es.stream, C.CFRunLoopRef(es.rlref), C.kCFRunLoopDefaultMode)
+		qn := C.CString("FSMonitor")
+		defer C.free(unsafe.Pointer(qn))
+		q := C.dispatch_queue_create((*C.char)(unsafe.Pointer(qn)), nil)
+		C.FSEventStreamSetDispatchQueue(es.stream, q)
 		if C.FSEventStreamStart(es.stream) == 0 {
 			// cleanup stream and runloop
 			C.FSEventStreamInvalidate(es.stream)
