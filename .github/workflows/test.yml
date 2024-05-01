@@ -1,55 +1,41 @@
-name: test
-on: [push]
+name: 'test'
+on:
+  pull_request:
+    paths: ['**.go', 'go.mod', '.github/workflows/*']
+  push:
+    branches: ['main']
 jobs:
   test:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - macos-10.15
-          - macos-latest
-        go:
-          - '1.18.0-beta1'
-          - '1.17'
-          - '1.16'
-    runs-on: ${{ matrix.os }}
+        os: ['macos-12', 'macos-latest']
+        go: ['1.17', '1.22']
+    runs-on: '${{ matrix.os }}'
     steps:
-      - name: setup Go
-        uses: actions/setup-go@v2
+      - uses: 'actions/checkout@v4'
+      - uses: 'actions/setup-go@v5'
         with:
-          stable: 'false'
-          go-version: ${{ matrix.go }}
+          go-version: '${{ matrix.go }}'
+      - name: 'test'
+        run: 'go test --race ./...'
 
-      - name: checkout
-        uses: actions/checkout@v2
-
-      - name: test
-        run: |
-          go test --race ./...
-
-  lint:
-    runs-on: macos-latest
+  staticcheck:
+    name:    'staticcheck'
+    runs-on: 'macos-latest'
     steps:
-      - name: setup Go
-        uses: actions/setup-go@v2
-        with: 
-          go-version: '1.17'
-
-      - name: checkout
-        uses: actions/checkout@v2
-
-      - name: gofmt
-        run: |
-          test -z "$(gofmt -s -d . | tee /dev/stderr)"
-
-      - name: vet
-        run: |
-          go vet ./...
-
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v2
-        continue-on-error: true
+      - uses: 'actions/checkout@v4'
+      - uses: 'actions/setup-go@v5'
         with:
-          version: latest
-          skip-go-installation: true
-          
+          go-version: '1.22'
+      - uses: 'actions/cache@v4'
+        with:
+          key: '${{ runner.os }}-staticcheck'
+          path: |
+            ${{ runner.temp }}/staticcheck
+            ${{ steps.install_go.outputs.GOCACHE || '' }}
+
+      - run: |
+          export STATICCHECK_CACHE="${{ runner.temp }}/staticcheck"
+          go install honnef.co/go/tools/cmd/staticcheck@latest
+          $(go env GOPATH)/bin/staticcheck ./...

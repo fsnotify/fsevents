@@ -1,11 +1,9 @@
 //go:build darwin
-// +build darwin
 
 package main
 
 import (
 	"bufio"
-	"io/ioutil"
 	"log"
 	"os"
 	"runtime"
@@ -15,9 +13,9 @@ import (
 )
 
 func main() {
-	path, err := ioutil.TempDir("", "fsexample")
+	path, err := os.MkdirTemp("", "fsexample")
 	if err != nil {
-		log.Fatalf("Failed to create TempDir: %v", err)
+		log.Fatalf("Failed to create MkdirTemp: %v", err)
 	}
 	dev, err := fsevents.DeviceForPath(path)
 	if err != nil {

@@ -1,11 +1,9 @@
 //go:build darwin
-// +build darwin
 
 package fsevents
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -13,7 +11,7 @@ import (
 )
 
 func TestBasicExample(t *testing.T) {
-	path, err := ioutil.TempDir("", "fsexample")
+	path, err := os.MkdirTemp("", "fsexample")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +50,7 @@ func TestBasicExample(t *testing.T) {
 		}
 	}()
 
-	err = ioutil.WriteFile(filepath.Join(path, "example.txt"), []byte("example"), 0700)
+	err = os.WriteFile(filepath.Join(path, "example.txt"), []byte("example"), 0700)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +65,7 @@ func TestIssue48(t *testing.T) {
 	// FSEvents fails to start when watching >4096 paths
 	// This test validates that limit and checks that the error is propagated
 
-	path, err := ioutil.TempDir("", "fsmanyfiles")
+	path, err := os.MkdirTemp("", "fsmanyfiles")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +84,7 @@ func TestIssue48(t *testing.T) {
 	var filenames []string
 	for i := 0; i < 4096; i++ {
 		newFilename := filepath.Join(path, fmt.Sprint("test", i))
-		err = ioutil.WriteFile(newFilename, []byte("test"), 0700)
+		err = os.WriteFile(newFilename, []byte("test"), 0700)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -118,7 +116,7 @@ func TestIssue48(t *testing.T) {
 	}()
 
 	// write some new contents to test42 in the watchlist
-	err = ioutil.WriteFile(filenames[42], []byte("special"), 0700)
+	err = os.WriteFile(filenames[42], []byte("special"), 0700)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +127,7 @@ func TestIssue48(t *testing.T) {
 	/////
 	// create one more file that puts it over the edge
 	newFilename := filepath.Join(path, fmt.Sprint("test", 4096))
-	err = ioutil.WriteFile(newFilename, []byte("test"), 0700)
+	err = os.WriteFile(newFilename, []byte("test"), 0700)
 	if err != nil {
 		t.Fatal(err)
 	}
