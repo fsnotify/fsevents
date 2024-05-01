@@ -134,16 +134,16 @@ func TestIssue48(t *testing.T) {
 	filenames = append(filenames, newFilename)
 
 	// create an all-new instances to avoid problems
-	es = &EventStream{
+	es2 := &EventStream{
 		Paths:   filenames,
 		Latency: 500 * time.Millisecond,
 		Device:  0, //dev,
 		Flags:   FileEvents,
 	}
 
-	err = es.Start()
+	err = es2.Start()
 	if err == nil {
-		es.Stop()
+		es2.Stop()
 		t.Fatal("eventstream error was not detected on >4096 files in watchlist")
 	}
 }
