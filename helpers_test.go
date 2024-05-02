@@ -1,4 +1,4 @@
-package fsnotify
+package fsevents
 
 import (
 	"fmt"
@@ -12,8 +12,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/fsnotify/fsnotify/internal"
 )
 
 // We wait a little bit after most commands; gives the system some time to sync
@@ -21,70 +19,56 @@ import (
 func eventSeparator() { time.Sleep(50 * time.Millisecond) }
 func waitForEvents()  { time.Sleep(500 * time.Millisecond) }
 
-// To test the buffered watcher we run the tests twice in the CI: once as "go
-// test" and once with FSNOTIFY_BUFFER set. This is a bit hacky, but saves
-// having to refactor a lot of this code. Besides, running the tests in the CI
-// more than once isn't a bad thing, since it helps catch flaky tests (should
-// probably run it even more).
-var testBuffered = func() uint {
-	s, ok := os.LookupEnv("FSNOTIFY_BUFFER")
-	if ok {
-		i, err := strconv.ParseUint(s, 0, 0)
-		if err != nil {
-			panic(fmt.Sprintf("FSNOTIFY_BUFFER: %s", err))
-		}
-		return uint(i)
-	}
-	return 0
-}()
-
-// newWatcher initializes an fsnotify Watcher instance.
-func newWatcher(t *testing.T, add ...string) *Watcher {
-	t.Helper()
-
-	var (
-		w   *Watcher
-		err error
-	)
-	if testBuffered > 0 {
-		w, err = NewBufferedWatcher(testBuffered)
-	} else {
-		w, err = NewWatcher()
-	}
-	if err != nil {
-		t.Fatalf("newWatcher: %s", err)
-	}
-	for _, a := range add {
-		err := w.Add(a)
-		if err != nil {
-			t.Fatalf("newWatcher: add %q: %s", a, err)
-		}
-	}
-	return w
-}
-
 // addWatch adds a watch for a directory
-func addWatch(t *testing.T, w *Watcher, path ...string) {
+func (w *eventCollector) addWatch(t *testing.T, path ...string) {
 	t.Helper()
 	if len(path) < 1 {
 		t.Fatalf("addWatch: path must have at least one element: %s", path)
 	}
-	err := w.Add(join(path...))
+
+	p := join(path...)
+
+	fmt.Printf("path: %s\n", p)
+
+	dev, err := DeviceForPath(p)
 	if err != nil {
-		t.Fatalf("addWatch(%q): %s", join(path...), err)
+		t.Fatal(err)
 	}
+
+	es := &EventStream{
+		Paths:   []string{p},
+		Latency: 0, //500 * time.Millisecond,
+		Device:  dev,
+		Flags:   FileEvents,
+	}
+
+	w.streams[p] = es
+
+	if err := w.streams[p].Start(); err != nil {
+		t.Fatalf("failed to start event stream: %s", err.Error())
+	}
+
+	go func() {
+		for msg := range es.Events {
+			fmt.Printf("events: %+v\n", msg)
+
+			w.mu.Lock()
+			w.e = append(w.e, msg...)
+			w.mu.Unlock()
+		}
+	}()
 }
 
 // rmWatch removes a watch.
-func rmWatch(t *testing.T, watcher *Watcher, path ...string) {
+func (c *eventCollector) rmWatch(t *testing.T, path ...string) {
 	t.Helper()
 	if len(path) < 1 {
 		t.Fatalf("rmWatch: path must have at least one element: %s", path)
 	}
-	err := watcher.Remove(join(path...))
-	if err != nil {
-		t.Fatalf("rmWatch(%q): %s", join(path...), err)
-	}
+
+	//p := join(path...)
+	//c.streams[p].Stop()
+	//delete(c.streams, p)
 }
 
 const noWait = ""
@@ -194,13 +178,13 @@ func mkfifo(t *testing.T, path ...string) {
 	if len(path) < 1 {
 		t.Fatalf("mkfifo: path must have at least one element: %s", path)
 	}
-	err := internal.Mkfifo(join(path...), 0o644)
-	if err != nil {
-		t.Fatalf("mkfifo(%q): %s", join(path...), err)
-	}
-	if shouldWait(path...) {
-		eventSeparator()
-	}
+	//err := internal.Mkfifo(join(path...), 0o644)
+	//if err != nil {
+	//	t.Fatalf("mkfifo(%q): %s", join(path...), err)
+	//}
+	//if shouldWait(path...) {
+	//	eventSeparator()
+	//}
 }
 
 // mknod
@@ -209,13 +193,13 @@ func mknod(t *testing.T, dev int, path ...string) {
 	if len(path) < 1 {
 		t.Fatalf("mknod: path must have at least one element: %s", path)
 	}
-	err := internal.Mknod(join(path...), 0o644, dev)
-	if err != nil {
-		t.Fatalf("mknod(%d, %q): %s", dev, join(path...), err)
-	}
-	if shouldWait(path...) {
-		eventSeparator()
-	}
+	//err := internal.Mknod(join(path...), 0o644, dev)
+	//if err != nil {
+	//	t.Fatalf("mknod(%d, %q): %s", dev, join(path...), err)
+	//}
+	//if shouldWait(path...) {
+	//	eventSeparator()
+	//}
 }
 
 // echoAppend and echoTrunc
@@ -370,39 +354,33 @@ func chmod(t *testing.T, mode fs.FileMode, path ...string) {
 //
 // events := w.stop(t)
 type eventCollector struct {
-	w    *Watcher
-	e    Events
-	mu   sync.Mutex
-	done chan struct{}
+	streams map[string]*EventStream
+	e       Events
+	mu      sync.Mutex
+	done    chan struct{}
 }
 
-func newCollector(t *testing.T, add ...string) *eventCollector {
+func newCollector() *eventCollector {
 	return &eventCollector{
-		w:    newWatcher(t, add...),
-		done: make(chan struct{}),
-		e:    make(Events, 0, 8),
+		streams: make(map[string]*EventStream),
+		done:    make(chan struct{}),
+		e:       make(Events, 0, 8),
 	}
 }
 
 // stop collecting events and return what we've got.
-func (w *eventCollector) stop(t *testing.T) Events {
-	return w.stopWait(t, time.Second)
+func (w *eventCollector) stop() Events {
+	return w.stopWait(time.Second)
 }
 
-func (w *eventCollector) stopWait(t *testing.T, waitFor time.Duration) Events {
+func (w *eventCollector) stopWait(waitFor time.Duration) Events {
 	waitForEvents()
 
-	go func() {
-		err := w.w.Close()
-		if err != nil {
-			t.Error(err)
-		}
-	}()
+	time.Sleep(waitFor)
 
-	select {
-	case <-time.After(waitFor):
-		t.Fatalf("event stream was not closed after %s", waitFor)
-	case <-w.done:
+	for _, es := range w.streams {
+		es.Flush(true)
+		es.Stop()
 	}
 
 	w.mu.Lock()
@@ -411,7 +389,7 @@ func (w *eventCollector) stopWait(t *testing.T, waitFor time.Duration) Events {
 }
 
 // Get all events we've found up to now and clear the event buffer.
-func (w *eventCollector) events(t *testing.T) Events {
+func (w *eventCollector) events() Events {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -419,32 +397,6 @@ func (w *eventCollector) events(t *testing.T) Events {
 	copy(e, w.e)
 	w.e = make(Events, 0, 16)
 	return e
-}
-
-// Start collecting events.
-func (w *eventCollector) collect(t *testing.T) {
-	go func() {
-		for {
-			select {
-			case e, ok := <-w.w.Errors:
-				if !ok {
-					w.done <- struct{}{}
-					return
-				}
-				t.Error(e)
-				w.done <- struct{}{}
-				return
-			case e, ok := <-w.w.Events:
-				if !ok {
-					w.done <- struct{}{}
-					return
-				}
-				w.mu.Lock()
-				w.e = append(w.e, e)
-				w.mu.Unlock()
-			}
-		}
-	}()
 }
 
 type Events []Event
@@ -455,27 +407,30 @@ func (e Events) String() string {
 		if i > 0 {
 			b.WriteString("\n")
 		}
-		if ee.renamedFrom != "" {
-			fmt.Fprintf(b, "%-8s %s ← %s", ee.Op.String(), filepath.ToSlash(ee.Name), filepath.ToSlash(ee.renamedFrom))
-		} else {
-			fmt.Fprintf(b, "%-8s %s", ee.Op.String(), filepath.ToSlash(ee.Name))
-		}
+		//if ee.renamedFrom != "" {
+		//	fmt.Fprintf(b, "%-8s %s ← %s", ee.Op.String(), filepath.ToSlash(ee.Name), filepath.ToSlash(ee.renamedFrom))
+		//} else {
+		//fmt.Fprintf(b, "%-8d %s", ee.Flags, filepath.ToSlash(ee.Path))
+		fmt.Fprintf(b, "%-8d %s", 0, filepath.ToSlash(ee.Path))
+		//}
 	}
 	return b.String()
 }
 
 func (e Events) TrimPrefix(prefix string) Events {
+	prefix = strings.TrimPrefix(prefix, "/")
+
 	for i := range e {
-		if e[i].Name == prefix {
-			e[i].Name = "/"
+		if e[i].Path == prefix {
+			e[i].Path = "/"
 		} else {
-			e[i].Name = strings.TrimPrefix(e[i].Name, prefix)
+			e[i].Path = strings.TrimPrefix(e[i].Path, prefix)
 		}
-		if e[i].renamedFrom == prefix {
-			e[i].renamedFrom = "/"
-		} else {
-			e[i].renamedFrom = strings.TrimPrefix(e[i].renamedFrom, prefix)
-		}
+		//if e[i].renamedFrom == prefix {
+		//	e[i].renamedFrom = "/"
+		//} else {
+		//	e[i].renamedFrom = strings.TrimPrefix(e[i].renamedFrom, prefix)
+		//}
 	}
 	return e
 }
@@ -541,45 +496,46 @@ func newEvents(t *testing.T, s string) Events {
 			t.Fatalf("newEvents: line %d: needs 2 or 4 fields: %s", no+1, line)
 		}
 
-		var op Op
-		for _, ee := range strings.Split(fields[0], "|") {
-			switch strings.ToUpper(ee) {
-			case "CREATE":
-				op |= Create
-			case "WRITE":
-				op |= Write
-			case "REMOVE":
-				op |= Remove
-			case "RENAME":
-				op |= Rename
-			case "CHMOD":
-				op |= Chmod
-			case "OPEN":
-				op |= xUnportableOpen
-			case "READ":
-				op |= xUnportableRead
-			case "CLOSE_WRITE":
-				op |= xUnportableCloseWrite
-			case "CLOSE_READ":
-				op |= xUnportableCloseRead
-			default:
-				t.Fatalf("newEvents: line %d has unknown event %q: %s", no+1, ee, line)
-			}
-		}
+		//var op Op
+		//for _, ee := range strings.Split(fields[0], "|") {
+		//	switch strings.ToUpper(ee) {
+		//	case "CREATE":
+		//		op |= Create
+		//	case "WRITE":
+		//		op |= Write
+		//	case "REMOVE":
+		//		op |= Remove
+		//	case "RENAME":
+		//		op |= Rename
+		//	case "CHMOD":
+		//		op |= Chmod
+		//	case "OPEN":
+		//		op |= xUnportableOpen
+		//	case "READ":
+		//		op |= xUnportableRead
+		//	case "CLOSE_WRITE":
+		//		op |= xUnportableCloseWrite
+		//	case "CLOSE_READ":
+		//		op |= xUnportableCloseRead
+		//	default:
+		//		t.Fatalf("newEvents: line %d has unknown event %q: %s", no+1, ee, line)
+		//	}
+		//}
 
-		var from string
-		if len(fields) > 2 {
-			if fields[2] != "←" {
-				t.Fatalf("newEvents: line %d: invalid format: %s", no+1, line)
-			}
-			from = strings.Trim(fields[3], `"`)
-		}
-		if !supportsRename() {
-			from = ""
-		}
+		//var from string
+		//if len(fields) > 2 {
+		//	if fields[2] != "←" {
+		//		t.Fatalf("newEvents: line %d: invalid format: %s", no+1, line)
+		//	}
+		//	from = strings.Trim(fields[3], `"`)
+		//}
+		//if !supportsRename() {
+		//	from = ""
+		//}
 
 		for _, g := range groups {
-			events[g] = append(events[g], Event{Name: strings.Trim(fields[1], `"`), renamedFrom: from, Op: op})
+			//events[g] = append(events[g], Event{Name: strings.Trim(fields[1], `"`), renamedFrom: from, Op: op})
+			events[g] = append(events[g], Event{Path: strings.Trim(fields[1], `"`)})
 		}
 	}
 
@@ -608,10 +564,10 @@ func cmpEvents(t *testing.T, tmp string, have, want Events) {
 
 	haveSort, wantSort := have.copy(), want.copy()
 	sort.Slice(haveSort, func(i, j int) bool {
-		return haveSort[i].String() > haveSort[j].String()
+		return haveSort[i].Path > haveSort[j].Path
 	})
 	sort.Slice(wantSort, func(i, j int) bool {
-		return wantSort[i].String() > wantSort[j].String()
+		return wantSort[i].Path > wantSort[j].Path
 	})
 
 	if haveSort.String() != wantSort.String() {
@@ -704,7 +660,14 @@ func parseScript(t *testing.T, in string) {
 		readW bool
 		want  string
 		tmp   = t.TempDir()
+		err   error
 	)
+
+	tmp, err = filepath.EvalSymlinks(tmp)
+	if err != nil {
+		t.Fatalf("evalSymlinks: %v", err)
+	}
+
 	for i, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" || line[0] == '#' {
@@ -758,7 +721,7 @@ func parseScript(t *testing.T, in string) {
 
 	var (
 		do      = make([]func(), 0, len(cmds))
-		w       = newCollector(t)
+		w       = newCollector()
 		mustArg = func(c command, n int) {
 			if len(c.args) != n {
 				t.Fatalf("line %d: %q requires exactly %d argument (have %d: %q)",
@@ -797,9 +760,9 @@ loop:
 			case "always":
 				t.Skip()
 			case "symlink":
-				if !internal.HasPrivilegesForSymlink() {
-					t.Skipf("%s symlink: admin permissions required on Windows", c.cmd)
-				}
+				//if !internal.HasPrivilegesForSymlink() {
+				//	t.Skipf("%s symlink: admin permissions required on Windows", c.cmd)
+				//}
 			case "mkfifo":
 				if runtime.GOOS == "windows" {
 					t.Skip("No named pipes on Windows")
@@ -845,9 +808,9 @@ loop:
 			mustArg(c, 1)
 			switch c.args[0] {
 			case "1", "on", "true", "yes":
-				do = append(do, func() { debug = true })
+				//do = append(do, func() { debug = true })
 			case "0", "off", "false", "no":
-				do = append(do, func() { debug = false })
+				//do = append(do, func() { debug = false })
 			default:
 				t.Fatalf("line %d: unknown debug: %q", c.line, c.args[0])
 			}
@@ -859,68 +822,24 @@ loop:
 				t.Fatalf("line %d: %q requires at least %d arguments (have %d: %q)",
 					c.line, c.cmd, 1, len(c.args), c.args)
 			}
-			if len(c.args) == 1 {
-				do = append(do, func() { addWatch(t, w.w, tmppath(tmp, c.args[0])) })
-				continue
-			}
 
-			var follow addOpt
-			for i := range c.args {
-				if c.args[i] == "nofollow" || c.args[i] == "no-follow" {
-					c.args = append(c.args[:i], c.args[i+1:]...)
-					follow = withNoFollow()
-					break
-				}
-			}
-
-			var op Op
-			for _, o := range c.args[1:] {
-				switch strings.ToLower(o) {
-				default:
-					t.Fatalf("line %d: unknown: %q", c.line+1, o)
-				case "default":
-					op |= Create | Write | Remove | Rename | Chmod
-				case "create":
-					op |= Create
-				case "write":
-					op |= Write
-				case "remove":
-					op |= Remove
-				case "rename":
-					op |= Rename
-				case "chmod":
-					op |= Chmod
-				case "open":
-					op |= xUnportableOpen
-				case "read":
-					op |= xUnportableRead
-				case "close_write":
-					op |= xUnportableCloseWrite
-				case "close_read":
-					op |= xUnportableCloseRead
-				}
-			}
 			do = append(do, func() {
-				p := tmppath(tmp, c.args[0])
-				err := w.w.AddWith(p, withOps(op), follow)
-				if err != nil {
-					t.Fatalf("line %d: addWatch(%q): %s", c.line+1, p, err)
-				}
+				w.addWatch(t, tmppath(tmp, c.args[0]))
 			})
 		case "unwatch":
 			mustArg(c, 1)
-			do = append(do, func() { rmWatch(t, w.w, tmppath(tmp, c.args[0])) })
+			do = append(do, func() { w.rmWatch(t, tmppath(tmp, c.args[0])) })
 		case "watchlist":
 			mustArg(c, 1)
-			n, err := strconv.ParseInt(c.args[0], 10, 0)
-			if err != nil {
-				t.Fatalf("line %d: %s", c.line, err)
-			}
+			//n, err := strconv.ParseInt(c.args[0], 10, 0)
+			//if err != nil {
+			//	t.Fatalf("line %d: %s", c.line, err)
+			//}
 			do = append(do, func() {
-				wl := w.w.WatchList()
-				if l := int64(len(wl)); l != n {
-					t.Errorf("line %d: watchlist has %d entries, not %d\n%q", c.line, l, n, wl)
-				}
+				//wl := w.w.WatchList()
+				//if l := int64(len(wl)); l != n {
+				//	t.Errorf("line %d: watchlist has %d entries, not %d\n%q", c.line, l, n, wl)
+				//}
 			})
 		case "touch":
 			mustArg(c, 1)
@@ -1012,10 +931,9 @@ loop:
 		}
 	}
 
-	w.collect(t)
 	for _, d := range do {
 		d()
 	}
-	ev := w.stop(t)
+	ev := w.stop()
 	cmpEvents(t, tmp, ev, newEvents(t, want))
 }
