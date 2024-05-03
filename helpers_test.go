@@ -28,8 +28,6 @@ func (w *eventCollector) addWatch(t *testing.T, path ...string) {
 
 	p := join(path...)
 
-	fmt.Printf("path: %s\n", p)
-
 	dev, err := DeviceForPath(p)
 	if err != nil {
 		t.Fatal(err)
@@ -50,8 +48,6 @@ func (w *eventCollector) addWatch(t *testing.T, path ...string) {
 
 	go func() {
 		for msg := range es.Events {
-			fmt.Printf("events: %+v\n", msg)
-
 			w.mu.Lock()
 			w.e = append(w.e, msg...)
 			w.mu.Unlock()
@@ -60,15 +56,15 @@ func (w *eventCollector) addWatch(t *testing.T, path ...string) {
 }
 
 // rmWatch removes a watch.
-func (c *eventCollector) rmWatch(t *testing.T, path ...string) {
+func (w *eventCollector) rmWatch(t *testing.T, path ...string) {
 	t.Helper()
 	if len(path) < 1 {
 		t.Fatalf("rmWatch: path must have at least one element: %s", path)
 	}
 
-	//p := join(path...)
-	//c.streams[p].Stop()
-	//delete(c.streams, p)
+	p := join(path...)
+	w.streams[p].Stop()
+	delete(w.streams, p)
 }
 
 const noWait = ""
@@ -723,7 +719,6 @@ func parseScript(t *testing.T, in string) {
 loop:
 	for _, c := range cmds {
 		c := c
-		//fmt.Printf("line %d: %q  %q\n", c.line, c.cmd, c.args)
 		switch c.cmd {
 		case "skip", "require":
 			mustArg(c, 1)
