@@ -598,15 +598,6 @@ func isSolaris() bool {
 	return false
 }
 
-func supportsRecurse(t *testing.T) {
-	switch runtime.GOOS {
-	case "windows":
-		// Run test.
-	default:
-		t.Skip("recursion not yet supported on " + runtime.GOOS)
-	}
-}
-
 func supportsFilter(t *testing.T) {
 	switch runtime.GOOS {
 	case "linux":
@@ -781,7 +772,7 @@ loop:
 					t.Skip(`"mknod fails with "not owner"`)
 				}
 			case "recurse":
-				supportsRecurse(t)
+				// noop - fsevents works with recurse by default
 			case "filter":
 				supportsFilter(t)
 			case "nofollow":
