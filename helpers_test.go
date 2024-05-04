@@ -83,7 +83,6 @@ func (w *eventCollector) addWatch(t *testing.T, path ...string) {
 
 	if _, found := w.streams[p]; found {
 		w.streams[p].Paths = append(w.streams[p].Paths, p)
-		fmt.Printf("HERE: %+v\n", w.streams[p].Paths)
 		return
 	}
 
