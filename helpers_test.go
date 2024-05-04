@@ -17,25 +17,25 @@ import (
 // EventFlags extensions for tests.
 
 var eventFlagsPossible = map[string]EventFlags{
-	"MustScanSubDirs":   MustScanSubDirs,
-	"KernelDropped":     KernelDropped,
-	"UserDropped":       UserDropped,
-	"EventIDsWrapped":   EventIDsWrapped,
-	"HistoryDone":       HistoryDone,
-	"RootChanged":       RootChanged,
-	"Mount":             Mount,
-	"Unmount":           Unmount,
-	"ItemCreated":       ItemCreated,
-	"ItemRemoved":       ItemRemoved,
-	"ItemInodeMetaMod":  ItemInodeMetaMod,
-	"ItemRenamed":       ItemRenamed,
-	"ItemModified":      ItemModified,
-	"ItemFinderInfoMod": ItemFinderInfoMod,
-	"ItemChangeOwner":   ItemChangeOwner,
-	"ItemXattrMod":      ItemXattrMod,
-	"ItemIsFile":        ItemIsFile,
-	"ItemIsDir":         ItemIsDir,
-	"ItemIsSymlink":     ItemIsSymlink,
+	strings.ToLower("MustScanSubDirs"):   MustScanSubDirs,
+	strings.ToLower("KernelDropped"):     KernelDropped,
+	strings.ToLower("UserDropped"):       UserDropped,
+	strings.ToLower("EventIDsWrapped"):   EventIDsWrapped,
+	strings.ToLower("HistoryDone"):       HistoryDone,
+	strings.ToLower("RootChanged"):       RootChanged,
+	strings.ToLower("Mount"):             Mount,
+	strings.ToLower("Unmount"):           Unmount,
+	strings.ToLower("ItemCreated"):       ItemCreated,
+	strings.ToLower("ItemRemoved"):       ItemRemoved,
+	strings.ToLower("ItemInodeMetaMod"):  ItemInodeMetaMod,
+	strings.ToLower("ItemRenamed"):       ItemRenamed,
+	strings.ToLower("ItemModified"):      ItemModified,
+	strings.ToLower("ItemFinderInfoMod"): ItemFinderInfoMod,
+	strings.ToLower("ItemChangeOwner"):   ItemChangeOwner,
+	strings.ToLower("ItemXattrMod"):      ItemXattrMod,
+	strings.ToLower("ItemIsFile"):        ItemIsFile,
+	strings.ToLower("ItemIsDir"):         ItemIsDir,
+	strings.ToLower("ItemIsSymlink"):     ItemIsSymlink,
 }
 
 func (flags EventFlags) set(mask EventFlags) EventFlags {
@@ -451,7 +451,7 @@ func newEvents(t *testing.T, s string) Events {
 
 		flags := strings.Split(fields[0], "|")
 		for _, f := range flags {
-			resultFlags = resultFlags.set(eventFlagsPossible[f])
+			resultFlags = resultFlags.set(eventFlagsPossible[strings.ToLower(f)])
 		}
 
 		for _, g := range groups {
