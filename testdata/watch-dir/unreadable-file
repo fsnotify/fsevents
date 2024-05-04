@@ -1,7 +1,5 @@
 # Create a watcher in a directory with an unreadable file.
 
-skip windows # TODO: figure out how to make a file unreadable
-
 touch /unreadable
 chmod 0 /unreadable
 touch /file

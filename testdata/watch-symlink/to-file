@@ -7,7 +7,3 @@ echo hello >>/file
 
 Output:
     no-events
-	# write    /link
-
-	windows: # TODO: investigate.
-		no-events

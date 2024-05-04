@@ -1,6 +1,4 @@
 # Make file unreadable after watch.
-skip windows  # TODO: figure out how to make a file unreadable
-
 touch /unreadable
 touch /file
 watch /
