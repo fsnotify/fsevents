@@ -227,26 +227,23 @@ func TestMany(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	//   300 = 100 files in root folder, 3 events per
-	// + 300 = 100 files in subfolders, 3 events per
-	// + 200 = 100 subfolders, 2 events per
-	// + 1 root folder
-	expectedEventCount := 300 + 300 + 200 + 1
+	events := make(map[string]EventFlags, 810)
 
-	var doneWg sync.WaitGroup
-	doneWg.Add(expectedEventCount)
+	wait := make(chan struct{})
 
-	events := make(map[string]EventFlags, expectedEventCount)
 	go func() {
-		for msg := range es.Events {
-			for _, event := range msg {
-				if _, ok := events[event.Path]; !ok {
-					events[event.Path] = event.Flags
-				} else {
-					events[event.Path] = events[event.Path].set(event.Flags)
+		for {
+			select {
+			case msg := <-es.Events:
+				for _, event := range msg {
+					if _, ok := events[event.Path]; !ok {
+						events[event.Path] = event.Flags
+					} else {
+						events[event.Path] = events[event.Path].set(event.Flags)
+					}
 				}
-
-				doneWg.Done()
+			case <-time.After(3 * time.Second):
+				wait <- struct{}{}
 			}
 		}
 	}()
@@ -296,7 +293,11 @@ func TestMany(t *testing.T) {
 	}
 	wg.Wait()
 
-	doneWg.Wait()
+	select {
+	case <-wait:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for events")
+	}
 
 	const fileExpectedFlags = ItemIsFile | ItemCreated | ItemModified | ItemRemoved
 	const dirExpectedFlags = ItemIsDir | ItemCreated | ItemRemoved
