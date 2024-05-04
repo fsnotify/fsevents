@@ -592,26 +592,6 @@ loop:
 	for _, c := range cmds {
 		c := c
 		switch c.cmd {
-		case "skip", "require":
-			mustArg(c, 1)
-			switch c.args[0] {
-			case "always":
-				t.Skip()
-			case "windows":
-				if runtime.GOOS == "windows" {
-					t.Skip("Skipping on Windows")
-				}
-			case "netbsd":
-				if runtime.GOOS == "netbsd" {
-					t.Skip("Skipping on NetBSD")
-				}
-			case "openbsd":
-				if runtime.GOOS == "openbsd" {
-					t.Skip("Skipping on OpenBSD")
-				}
-			default:
-				t.Fatalf("line %d: unknown %s reason: %q", c.line, c.cmd, c.args[0])
-			}
 		case "stop":
 			mustArg(c, 0)
 			break loop
