@@ -1,6 +1,4 @@
 # Remove recursive.
-require recurse
-
 mkdir -p /dir1/subdir
 mkdir -p /dir2/subdir
 touch /dir1/subdir/file

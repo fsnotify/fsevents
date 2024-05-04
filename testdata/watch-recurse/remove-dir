@@ -1,6 +1,4 @@
 # Remove nested directory
-require recurse
-
 mkdir -p /sub/dir
 watch /
 

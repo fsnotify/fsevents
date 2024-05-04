@@ -1,6 +1,4 @@
 # Add directory to a recursively watched dir.
-require recurse
-
 mkdir -p /sub/dir
 watch /
 
