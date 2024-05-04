@@ -8,10 +8,6 @@ rm /link
 echo foo >>/link
 
 Output:
-	write  /link
-	create /link
-
-	linux, windows, fen:
-		remove  /link
-		create  /link
-		write   /link
+    ItemIsSymlink|ItemRemoved /link
+    ItemCreated|ItemIsFile /link
+    ItemIsFile|ItemModified /link

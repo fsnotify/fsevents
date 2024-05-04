@@ -8,4 +8,4 @@ watch /file
 echo hello >>/file
 
 Output:
-	write    /file
+    ItemIsFile|ItemModified /file

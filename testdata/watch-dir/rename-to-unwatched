@@ -14,14 +14,7 @@ echo data >>/unwatch/file   # Modify the file outside of the watched dir
 touch /dir/file             # Recreate the file that was moved
 
 Output:
-	create /dir/file # cat data >/dir/file
-	write  /dir/file # ^
-	rename /dir/file # mv /dir/file /unwatch/rename
-	create /dir/file # touch /dir/file
-
-	# Windows has REMOVE /file, rather than CREATE /file
-	windows:
-		create   /dir/file
-		write    /dir/file
-		remove   /dir/file
-		create   /dir/file
+    ItemCreated|ItemIsFile /dir/file  # cat data >/dir/file
+    ItemIsFile|ItemModified /dir/file # ^
+    ItemIsFile|ItemRenamed /dir/file  # mv /dir/file /unwatch/rename
+    ItemCreated|ItemIsFile /dir/file  # touch /dir/file

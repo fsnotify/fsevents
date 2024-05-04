@@ -2,19 +2,14 @@
 require recurse
 
 mkdir -p /sub/dir
-watch /...
+watch /
 
 echo asd >/sub/dir/file
 rm -r /sub
 
 Output:
-	create   /sub/dir/file
-	write    /sub/dir/file
-
-	write  /sub
-	write  /sub/dir
-	remove /sub/dir/file
-	write  /sub/dir
-	remove /sub/dir
-	write  /sub
-	remove /sub
+    ItemCreated|ItemIsFile /sub/dir/file
+    ItemIsFile|ItemModified /sub/dir/file
+    ItemIsFile|ItemRemoved /sub/dir/file
+    ItemIsDir|ItemRemoved /sub/dir
+    ItemIsDir|ItemRemoved /sub

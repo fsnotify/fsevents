@@ -13,7 +13,7 @@ rm /file
 rm /unreadable
 
 Output:
-	chmod     /unreadable
-	write     /file
-	remove    /file
-	remove    /unreadable
+    ItemChangeOwner|ItemIsFile /unreadable
+    ItemIsFile|ItemModified /file
+    ItemIsFile|ItemRemoved /file
+    ItemIsFile|ItemRemoved /unreadable

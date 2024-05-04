@@ -8,7 +8,4 @@ watch /
 rm /link
 
 Output:
-	remove /link
-
-	kqueue:  # TODO: this is broken.
-		no-events
+    ItemIsSymlink|ItemRemoved /link

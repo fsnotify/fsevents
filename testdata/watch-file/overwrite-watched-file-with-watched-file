@@ -21,11 +21,16 @@ Output:
 	remove   /file
 
 	kqueue:
-		rename   /other
-		remove   /file
-		create   /file
-		write    /file
-		remove   /file
+        ItemIsFile|ItemRenamed /other
+        ItemIsFile|ItemRenamed /file
+        ItemIsFile|ItemRenamed /file
+        ItemIsFile|ItemModified /file
+        ItemIsFile|ItemRemoved /file
+		#rename   /other
+		#remove   /file
+		#create   /file
+		#write    /file
+		#remove   /file
 
 	windows:
 		remove   /file

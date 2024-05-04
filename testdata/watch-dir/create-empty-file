@@ -3,4 +3,4 @@ watch /
 touch /file
 
 Output:
-	create  /file
+    ItemCreated|ItemIsFile /file

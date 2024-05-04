@@ -6,7 +6,7 @@ watch /
 ln -s /dir /link
 
 Output:
-	create  /link
+    ItemCreated|ItemIsSymlink /link
 
 	dragonfly: # TODO: can we fix this?
 		no-events

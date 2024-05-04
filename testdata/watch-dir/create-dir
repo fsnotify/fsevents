@@ -3,4 +3,4 @@ watch /
 mkdir /dir
 
 Output:
-	create  /dir
+    ItemCreated|ItemIsDir /dir

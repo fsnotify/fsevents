@@ -9,9 +9,6 @@ echo more >>/file
 chmod 600 /file
 
 Output:
-	chmod  /file
-	write  /file
-	chmod  /file
-
-	windows:
-		write /file
+    ItemChangeOwner|ItemIsFile /file
+    ItemIsFile|ItemModified /file
+    ItemChangeOwner|ItemIsFile /file

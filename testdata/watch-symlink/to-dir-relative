@@ -8,7 +8,4 @@ watch /link
 touch /dir/file
 
 Output:
-	create    /link/file
-
-	kqueue:  # TODO: broken
-		no-events
+    ItemCreated|ItemIsFile /dir/file

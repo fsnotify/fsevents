@@ -2,7 +2,7 @@
 require recurse
 
 mkdir -p /sub/dir
-watch /...
+watch /
 
 mkdir -p /sub/dir/newdir
 touch /sub/dir/newdir/file
@@ -16,14 +16,12 @@ rm /sub/dir/newdir/file
 echo foo >/sub/dir/newdir/file
 
 Output:
-	create   /sub/dir/newdir
-	create   /sub/dir/newdir/file
-	remove   /sub/dir/newdir/file
+    ItemCreated|ItemIsDir /sub/dir/newdir
+    ItemCreated|ItemIsFile /sub/dir/newdir/file
+    ItemIsFile|ItemRemoved /sub/dir/newdir/file
 
-	write    /sub/dir/newdir
-	create   /sub/dir/newdir/file
-	remove   /sub/dir/newdir/file
+    ItemCreated|ItemIsFile /sub/dir/newdir/file
+    ItemIsFile|ItemRemoved /sub/dir/newdir/file
 
-	write    /sub/dir/newdir
-	create   /sub/dir/newdir/file
-	write    /sub/dir/newdir/file
+    ItemCreated|ItemIsFile /sub/dir/newdir/file
+    ItemIsFile|ItemModified /sub/dir/newdir/file

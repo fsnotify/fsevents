@@ -9,4 +9,5 @@ watch /dir
 mv /unwatch/file /dir/file
 
 Output:
-	create /dir/file
+    ItemIsFile|ItemRenamed /dir/file
+

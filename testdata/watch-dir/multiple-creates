@@ -14,9 +14,9 @@ echo data >>/file  # Modify
 echo data >>/file  # Modify
 
 Output:
-	create  /file  # echo data >>/file
-	write   /file
-	remove  /file  # rm /file
-	create  /file  # touch /file
-	write   /file  # echo data >>/file
-	write   /file  # echo data >>/file
+    ItemCreated|ItemIsFile /file
+    ItemIsFile|ItemModified /file
+    ItemIsFile|ItemRemoved /file
+    ItemCreated|ItemIsFile /file
+    ItemIsFile|ItemModified /file
+    ItemIsFile|ItemModified /file

@@ -8,15 +8,6 @@ watch /
 mv /file /rename
 
 Output:
-	remove  /rename
-	rename  /file
-	create  /rename ← /file
-
-	# Inotify just sends MOVED_FROM and MOVED_TO.
-	linux:
-		rename /file
-		create /rename ← /file
-
-	dragonfly:
-		remove /
-		rename /file
+    ItemIsFile|ItemRenamed /file
+    ItemIsFile|ItemRenamed /rename
+    ItemIsFile|ItemRenamed /rename

@@ -5,5 +5,5 @@ watch /
 mv /file /rename
 
 Output:
-	rename /file
-	create /rename ← /file
+    ItemIsFile|ItemRenamed /file
+    ItemIsFile|ItemRenamed /rename

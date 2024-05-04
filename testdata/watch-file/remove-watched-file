@@ -5,8 +5,4 @@ watch /file
 rm /file
 
 Output:
-	remove /file
-
-	linux:  # unlink always emits a chmod on linux.
-		chmod  /file
-		remove /file
+    ItemIsFile|ItemRemoved /file

@@ -15,17 +15,9 @@ mv     /apple /pear
 rm -r  /pear
 
 Output:
-	create   /foo     # touch /foo
-	remove   /foo     # rm /foo
-	create   /apple   # mkdir /apple
-	rename   /apple   # mv /apple /pear
-	create   /pear ← /apple
-	remove   /pear    # rm -r /pear
-
-	dragonfly:
-		create   /foo
-		remove   /foo
-		create   /apple
-		rename   /apple
-		create   /pear
-		# No event for rm -r pear?
+    ItemCreated|ItemIsFile /foo
+    ItemIsFile|ItemRemoved /foo
+    ItemCreated|ItemIsDir /apple
+    ItemIsDir|ItemRenamed /apple
+    ItemIsDir|ItemRenamed /pear
+    ItemIsDir|ItemRemoved /pear

@@ -7,7 +7,4 @@ mv /dir /dir-rename
 touch /dir-rename/file
 
 Output:
-	rename /dir
-
-	windows:  # TODO(v2): Windows should behave the same by default. See #518
-		create /dir/file
+    ItemIsDir|ItemRenamed /dir

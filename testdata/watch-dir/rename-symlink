@@ -9,8 +9,5 @@ watch /
 mv /link /link-rename
 
 Output:
-	rename /link
-	create /link-rename ← /link
-
-	kqueue:  # TODO: this is broken.
-		create /link-rename
+    ItemIsSymlink|ItemRenamed /link
+    ItemIsSymlink|ItemRenamed /link-rename

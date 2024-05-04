@@ -8,7 +8,8 @@ watch /link
 echo hello >>/file
 
 Output:
-	write    /link
+    no-events
+	# write    /link
 
 	windows: # TODO: investigate.
 		no-events

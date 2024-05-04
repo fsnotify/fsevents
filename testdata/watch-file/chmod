@@ -5,7 +5,4 @@ watch /file
 chmod 700 /file
 
 Output:
-	chmod /file
-
-	windows:
-		no-events
+    ItemChangeOwner|ItemIsFile /file

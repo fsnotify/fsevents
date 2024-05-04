@@ -3,5 +3,5 @@ watch /
 echo data >>/file
 
 Output:
-	create  /file
-	write   /file
+    ItemCreated|ItemIsFile /file
+    ItemIsFile|ItemModified /file

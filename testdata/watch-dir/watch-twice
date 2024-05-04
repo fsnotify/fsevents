@@ -9,7 +9,7 @@ rm /file
 mkdir /dir
 
 Output:
-	create   /file
-	write    /file
-	remove   /file
-	create   /dir
+    ItemCreated|ItemIsFile /file
+    ItemIsFile|ItemModified /file
+    ItemIsFile|ItemRemoved /file
+    ItemCreated|ItemIsDir /dir
