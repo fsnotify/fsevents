@@ -17,19 +17,23 @@ func TestScript(t *testing.T) {
 		if err != nil {
 			return err
 		}
+
 		if info.IsDir() {
 			return nil
 		}
-		//t.Run(filepath.ToSlash(path), func(t *testing.T) {
+
 		n := strings.Split(filepath.ToSlash(path), "/")
 		t.Run(strings.Join(n[1:], "/"), func(t *testing.T) {
 			t.Parallel()
+
 			d, err := os.ReadFile(path)
 			if err != nil {
 				t.Fatal(err)
 			}
+
 			parseScript(t, string(d))
 		})
+
 		return nil
 	})
 	if err != nil {

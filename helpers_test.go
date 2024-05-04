@@ -324,14 +324,6 @@ func chmod(t *testing.T, mode fs.FileMode, path ...string) {
 	}
 }
 
-// Collect all events in an array.
-//
-// w := newCollector(t)
-// w.collect(r)
-//
-// .. do stuff ..
-//
-// events := w.stop(t)
 type eventCollector struct {
 	streams map[string]*EventStream
 	e       Events
@@ -375,12 +367,6 @@ func (e Events) String() string {
 		if i > 0 {
 			b.WriteString("\n")
 		}
-		//if ee.renamedFrom != "" {
-		//	fmt.Fprintf(b, "%-8s %s ← %s", ee.Op.String(), filepath.ToSlash(ee.Name), filepath.ToSlash(ee.renamedFrom))
-		//} else {
-		//fmt.Fprintf(b, "%-8d %s", ee.Flags, filepath.ToSlash(ee.Path))
-
-		//}
 
 		fmt.Fprintf(b, "%-8v %s", ee.Flags.String(), filepath.ToSlash(ee.Path))
 	}
@@ -396,11 +382,6 @@ func (e Events) TrimPrefix(prefix string) Events {
 		} else {
 			e[i].Path = strings.TrimPrefix(e[i].Path, prefix)
 		}
-		//if e[i].renamedFrom == prefix {
-		//	e[i].renamedFrom = "/"
-		//} else {
-		//	e[i].renamedFrom = strings.TrimPrefix(e[i].renamedFrom, prefix)
-		//}
 	}
 	return e
 }
@@ -485,13 +466,6 @@ func newEvents(t *testing.T, s string) Events {
 	if e, ok := events[runtime.GOOS]; ok {
 		return e
 	}
-	switch runtime.GOOS {
-	// kqueue shortcut
-	case "freebsd", "netbsd", "openbsd", "dragonfly", "darwin":
-		if e, ok := events["kqueue"]; ok {
-			return e
-		}
-	}
 	return events[""]
 }
 
@@ -509,7 +483,6 @@ func cmpEvents(t *testing.T, tmp string, have, want Events) {
 	})
 
 	if haveSort.String() != wantSort.String() {
-		//t.Error("\n" + ztest.Diff(indent(haveSort), indent(wantSort)))
 		t.Errorf("\nhave:\n%s\nwant:\n%s", indent(have), indent(want))
 	}
 }
