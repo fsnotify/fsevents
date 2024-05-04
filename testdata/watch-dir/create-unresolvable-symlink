@@ -1,6 +1,4 @@
 # Create unresolvable symlink
-require symlink
-
 watch /
 ln -s /target /link
 

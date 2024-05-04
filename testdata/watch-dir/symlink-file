@@ -1,6 +1,4 @@
 # Create a new symlink to a file.
-require symlink
-
 touch /file
 watch /
 ln -s /file /link

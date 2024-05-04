@@ -1,6 +1,4 @@
 # Create a new symlink to a watched file.
-require symlink
-
 mkdir /dir
 watch /
 ln -s /dir /link

@@ -1,6 +1,4 @@
 # https://github.com/fsnotify/fsnotify/issues/277
-require symlink
-
 touch /file1
 touch /file2
 ln -s /file1 /link1

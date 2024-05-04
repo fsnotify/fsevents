@@ -1,6 +1,4 @@
 # Watch a symlink to a dir
-require symlink
-
 mkdir /dir
 ln -s ./dir /link
 watch /link

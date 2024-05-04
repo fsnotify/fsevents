@@ -1,6 +1,4 @@
 # Watch a symlink to a file.
-require symlink
-
 touch /file
 ln -s /file /link
 watch /link

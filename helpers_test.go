@@ -624,10 +624,6 @@ loop:
 			switch c.args[0] {
 			case "always":
 				t.Skip()
-			case "symlink":
-				//if !internal.HasPrivilegesForSymlink() {
-				//    t.Skipf("%s symlink: admin permissions required on Windows", c.cmd)
-				//}
 			case "windows":
 				if runtime.GOOS == "windows" {
 					t.Skip("Skipping on Windows")

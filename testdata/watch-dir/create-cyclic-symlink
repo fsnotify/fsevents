@@ -1,6 +1,4 @@
 # Cyclic symlink
-require symlink
-
 ln -s ./ /link
 watch /
 
