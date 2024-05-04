@@ -38,19 +38,19 @@ var eventFlagsPossible = map[string]EventFlags{
 	"ItemIsSymlink":     ItemIsSymlink,
 }
 
-func (flags EventFlags) Set(mask EventFlags) EventFlags {
+func (flags EventFlags) set(mask EventFlags) EventFlags {
 	return flags | mask
 }
 
-func (flags EventFlags) HasFlag(mask EventFlags) bool {
+func (flags EventFlags) hasFlag(mask EventFlags) bool {
 	return flags&mask != 0
 }
 
-func (flags EventFlags) SetFlags() []string {
+func (flags EventFlags) setFlags() []string {
 	var result []string
 
 	for k, f := range eventFlagsPossible {
-		if flags.HasFlag(f) {
+		if flags.hasFlag(f) {
 			result = append(result, k)
 		}
 	}
@@ -63,7 +63,7 @@ func (flags EventFlags) SetFlags() []string {
 }
 
 func (flags EventFlags) String() string {
-	setFlags := flags.SetFlags()
+	setFlags := flags.setFlags()
 	return strings.Join(setFlags, "|")
 }
 
@@ -471,7 +471,7 @@ func newEvents(t *testing.T, s string) Events {
 
 		flags := strings.Split(fields[0], "|")
 		for _, f := range flags {
-			resultFlags = resultFlags.Set(eventFlagsPossible[f])
+			resultFlags = resultFlags.set(eventFlagsPossible[f])
 		}
 
 		for _, g := range groups {
@@ -629,8 +629,6 @@ loop:
 				//if !internal.HasPrivilegesForSymlink() {
 				//    t.Skipf("%s symlink: admin permissions required on Windows", c.cmd)
 				//}
-			case "recurse":
-				// noop - fsevents works with recurse by default
 			case "windows":
 				if runtime.GOOS == "windows" {
 					t.Skip("Skipping on Windows")
@@ -645,19 +643,6 @@ loop:
 				}
 			default:
 				t.Fatalf("line %d: unknown %s reason: %q", c.line, c.cmd, c.args[0])
-			}
-		//case "state":
-		//	mustArg(c, 0)
-		//	do = append(do, func() { eventSeparator(); fmt.Fprintln(os.Stderr); w.w.state(); fmt.Fprintln(os.Stderr) })
-		case "debug":
-			mustArg(c, 1)
-			switch c.args[0] {
-			case "1", "on", "true", "yes":
-				//do = append(do, func() { debug = true })
-			case "0", "off", "false", "no":
-				//do = append(do, func() { debug = false })
-			default:
-				t.Fatalf("line %d: unknown debug: %q", c.line, c.args[0])
 			}
 		case "stop":
 			mustArg(c, 0)
