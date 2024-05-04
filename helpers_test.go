@@ -14,9 +14,62 @@ import (
 	"time"
 )
 
+// EventFlags extensions for tests.
+
+var eventFlagsPossible = map[string]EventFlags{
+	"MustScanSubDirs":   MustScanSubDirs,
+	"KernelDropped":     KernelDropped,
+	"UserDropped":       UserDropped,
+	"EventIDsWrapped":   EventIDsWrapped,
+	"HistoryDone":       HistoryDone,
+	"RootChanged":       RootChanged,
+	"Mount":             Mount,
+	"Unmount":           Unmount,
+	"ItemCreated":       ItemCreated,
+	"ItemRemoved":       ItemRemoved,
+	"ItemInodeMetaMod":  ItemInodeMetaMod,
+	"ItemRenamed":       ItemRenamed,
+	"ItemModified":      ItemModified,
+	"ItemFinderInfoMod": ItemFinderInfoMod,
+	"ItemChangeOwner":   ItemChangeOwner,
+	"ItemXattrMod":      ItemXattrMod,
+	"ItemIsFile":        ItemIsFile,
+	"ItemIsDir":         ItemIsDir,
+	"ItemIsSymlink":     ItemIsSymlink,
+}
+
+func (flags EventFlags) Set(mask EventFlags) EventFlags {
+	return flags | mask
+}
+
+func (flags EventFlags) HasFlag(mask EventFlags) bool {
+	return flags&mask != 0
+}
+
+func (flags EventFlags) SetFlags() []string {
+	var result []string
+
+	for k, f := range eventFlagsPossible {
+		if flags.HasFlag(f) {
+			result = append(result, k)
+		}
+	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i] < result[j]
+	})
+
+	return result
+}
+
+func (flags EventFlags) String() string {
+	setFlags := flags.SetFlags()
+	return strings.Join(setFlags, "|")
+}
+
 // We wait a little bit after most commands; gives the system some time to sync
 // things and makes things more consistent across platforms.
-func eventSeparator() { time.Sleep(50 * time.Millisecond) }
+func eventSeparator() { time.Sleep(100 * time.Millisecond) }
 func waitForEvents()  { time.Sleep(500 * time.Millisecond) }
 
 // addWatch adds a watch for a directory
@@ -28,6 +81,12 @@ func (w *eventCollector) addWatch(t *testing.T, path ...string) {
 
 	p := join(path...)
 
+	if _, found := w.streams[p]; found {
+		w.streams[p].Paths = append(w.streams[p].Paths, p)
+		fmt.Printf("HERE: %+v\n", w.streams[p].Paths)
+		return
+	}
+
 	dev, err := DeviceForPath(p)
 	if err != nil {
 		t.Fatal(err)
@@ -35,9 +94,9 @@ func (w *eventCollector) addWatch(t *testing.T, path ...string) {
 
 	es := &EventStream{
 		Paths:   []string{p},
-		Latency: 0, //500 * time.Millisecond,
+		Latency: 0, // 500 * time.Millisecond,
 		Device:  dev,
-		Flags:   FileEvents,
+		Flags:   FileEvents | NoDefer,
 	}
 
 	w.streams[p] = es
@@ -63,11 +122,10 @@ func (w *eventCollector) rmWatch(t *testing.T, path ...string) {
 	}
 
 	p := join(path...)
+	w.streams[p].Flush(true)
 	w.streams[p].Stop()
 	delete(w.streams, p)
 }
-
-const noWait = ""
 
 func shouldWait(path ...string) bool {
 	// Take advantage of the fact that join skips empty parameters.
@@ -77,50 +135,6 @@ func shouldWait(path ...string) bool {
 		}
 	}
 	return true
-}
-
-// Create n empty files with the prefix in the directory dir.
-func createFiles(t *testing.T, dir, prefix string, n int, d time.Duration) int {
-	t.Helper()
-
-	if d == 0 {
-		d = 9 * time.Minute
-	}
-
-	fmtNum := func(n int) string {
-		s := fmt.Sprintf("%09d", n)
-		return s[:3] + "_" + s[3:6] + "_" + s[6:]
-	}
-
-	var (
-		max     = time.After(d)
-		created int
-	)
-	for i := 0; i < n; i++ {
-		select {
-		case <-max:
-			t.Logf("createFiles: stopped at %s files because it took longer than %s", fmtNum(created), d)
-			return created
-		default:
-			path := join(dir, prefix+fmtNum(i))
-			fp, err := os.Create(path)
-			if err != nil {
-				t.Errorf("create failed for %s: %s", fmtNum(i), err)
-				continue
-			}
-			if err := fp.Close(); err != nil {
-				t.Errorf("close failed for %s: %s", fmtNum(i), err)
-			}
-			if err := os.Remove(path); err != nil {
-				t.Errorf("remove failed for %s: %s", fmtNum(i), err)
-			}
-			if i%10_000 == 0 {
-				t.Logf("createFiles: %s", fmtNum(i))
-			}
-			created++
-		}
-	}
-	return created
 }
 
 // mkdir
@@ -166,36 +180,6 @@ func symlink(t *testing.T, target string, link ...string) {
 	if shouldWait(link...) {
 		eventSeparator()
 	}
-}
-
-// mkfifo
-func mkfifo(t *testing.T, path ...string) {
-	t.Helper()
-	if len(path) < 1 {
-		t.Fatalf("mkfifo: path must have at least one element: %s", path)
-	}
-	//err := internal.Mkfifo(join(path...), 0o644)
-	//if err != nil {
-	//	t.Fatalf("mkfifo(%q): %s", join(path...), err)
-	//}
-	//if shouldWait(path...) {
-	//	eventSeparator()
-	//}
-}
-
-// mknod
-func mknod(t *testing.T, dev int, path ...string) {
-	t.Helper()
-	if len(path) < 1 {
-		t.Fatalf("mknod: path must have at least one element: %s", path)
-	}
-	//err := internal.Mknod(join(path...), 0o644, dev)
-	//if err != nil {
-	//	t.Fatalf("mknod(%d, %q): %s", dev, join(path...), err)
-	//}
-	//if shouldWait(path...) {
-	//	eventSeparator()
-	//}
 }
 
 // echoAppend and echoTrunc
@@ -384,17 +368,6 @@ func (w *eventCollector) stopWait(waitFor time.Duration) Events {
 	return w.e
 }
 
-// Get all events we've found up to now and clear the event buffer.
-func (w *eventCollector) events() Events {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	e := make(Events, len(w.e))
-	copy(e, w.e)
-	w.e = make(Events, 0, 16)
-	return e
-}
-
 type Events []Event
 
 func (e Events) String() string {
@@ -407,8 +380,10 @@ func (e Events) String() string {
 		//	fmt.Fprintf(b, "%-8s %s ← %s", ee.Op.String(), filepath.ToSlash(ee.Name), filepath.ToSlash(ee.renamedFrom))
 		//} else {
 		//fmt.Fprintf(b, "%-8d %s", ee.Flags, filepath.ToSlash(ee.Path))
-		fmt.Fprintf(b, "%-8d %s", 0, filepath.ToSlash(ee.Path))
+
 		//}
+
+		fmt.Fprintf(b, "%-8v %s", ee.Flags.String(), filepath.ToSlash(ee.Path))
 	}
 	return b.String()
 }
@@ -492,46 +467,19 @@ func newEvents(t *testing.T, s string) Events {
 			t.Fatalf("newEvents: line %d: needs 2 or 4 fields: %s", no+1, line)
 		}
 
-		//var op Op
-		//for _, ee := range strings.Split(fields[0], "|") {
-		//	switch strings.ToUpper(ee) {
-		//	case "CREATE":
-		//		op |= Create
-		//	case "WRITE":
-		//		op |= Write
-		//	case "REMOVE":
-		//		op |= Remove
-		//	case "RENAME":
-		//		op |= Rename
-		//	case "CHMOD":
-		//		op |= Chmod
-		//	case "OPEN":
-		//		op |= xUnportableOpen
-		//	case "READ":
-		//		op |= xUnportableRead
-		//	case "CLOSE_WRITE":
-		//		op |= xUnportableCloseWrite
-		//	case "CLOSE_READ":
-		//		op |= xUnportableCloseRead
-		//	default:
-		//		t.Fatalf("newEvents: line %d has unknown event %q: %s", no+1, ee, line)
-		//	}
-		//}
+		var resultFlags EventFlags
 
-		//var from string
-		//if len(fields) > 2 {
-		//	if fields[2] != "←" {
-		//		t.Fatalf("newEvents: line %d: invalid format: %s", no+1, line)
-		//	}
-		//	from = strings.Trim(fields[3], `"`)
-		//}
-		//if !supportsRename() {
-		//	from = ""
-		//}
+		flags := strings.Split(fields[0], "|")
+		for _, f := range flags {
+			resultFlags = resultFlags.Set(eventFlagsPossible[f])
+		}
 
 		for _, g := range groups {
-			//events[g] = append(events[g], Event{Name: strings.Trim(fields[1], `"`), renamedFrom: from, Op: op})
-			events[g] = append(events[g], Event{Path: strings.Trim(fields[1], `"`)})
+			e := Event{
+				Path:  strings.Trim(fields[1], `"`),
+				Flags: resultFlags,
+			}
+			events[g] = append(events[g], e)
 		}
 	}
 
@@ -542,11 +490,6 @@ func newEvents(t *testing.T, s string) Events {
 	// kqueue shortcut
 	case "freebsd", "netbsd", "openbsd", "dragonfly", "darwin":
 		if e, ok := events["kqueue"]; ok {
-			return e
-		}
-	// fen shortcut
-	case "solaris", "illumos":
-		if e, ok := events["fen"]; ok {
 			return e
 		}
 	}
@@ -577,49 +520,6 @@ func indent(s fmt.Stringer) string {
 }
 
 var join = filepath.Join
-
-func isKqueue() bool {
-	switch runtime.GOOS {
-	case "darwin", "freebsd", "openbsd", "netbsd", "dragonfly":
-		return true
-	}
-	return false
-}
-
-func isSolaris() bool {
-	switch runtime.GOOS {
-	case "illumos", "solaris":
-		return true
-	}
-	return false
-}
-
-func supportsFilter(t *testing.T) {
-	switch runtime.GOOS {
-	case "linux":
-		// Run test.
-	default:
-		t.Skip("withOps() not yet supported on " + runtime.GOOS)
-	}
-}
-
-func supportsRename() bool {
-	switch runtime.GOOS {
-	case "linux", "windows":
-		return true
-	default:
-		return false
-	}
-}
-
-func supportsNofollow(t *testing.T) {
-	switch runtime.GOOS {
-	case "linux":
-		// Run test.
-	default:
-		t.Skip("withNoFollow() not yet supported on " + runtime.GOOS)
-	}
-}
 
 func tmppath(tmp, s string) string {
 	if len(s) == 0 {
@@ -723,55 +623,14 @@ loop:
 		case "skip", "require":
 			mustArg(c, 1)
 			switch c.args[0] {
-			case "op_all":
-				if runtime.GOOS != "linux" {
-					t.Skip("No op_all on this platform")
-				}
-			case "op_open":
-				if runtime.GOOS != "linux" {
-					t.Skip("No Open on this platform")
-				}
-			case "op_read":
-				if runtime.GOOS != "linux" {
-					t.Skip("No Read on this platform")
-				}
-			case "op_close_write":
-				if runtime.GOOS != "linux" {
-					t.Skip("No CloseWrite on this platform")
-				}
-			case "op_close_read":
-				if runtime.GOOS != "linux" {
-					t.Skip("No CloseRead on this platform")
-				}
 			case "always":
 				t.Skip()
 			case "symlink":
 				//if !internal.HasPrivilegesForSymlink() {
-				//	t.Skipf("%s symlink: admin permissions required on Windows", c.cmd)
+				//    t.Skipf("%s symlink: admin permissions required on Windows", c.cmd)
 				//}
-			case "mkfifo":
-				if runtime.GOOS == "windows" {
-					t.Skip("No named pipes on Windows")
-				}
-			case "mknod":
-				if runtime.GOOS == "windows" {
-					t.Skip("No device nodes on Windows")
-				}
-				if isKqueue() {
-					// Don't want to use os/user to check uid, since that pulls
-					// in cgo by default and stuff that uses fsnotify won't be
-					// statically linked by default.
-					t.Skip("needs root on BSD")
-				}
-				if isSolaris() {
-					t.Skip(`"mknod fails with "not owner"`)
-				}
 			case "recurse":
 				// noop - fsevents works with recurse by default
-			case "filter":
-				supportsFilter(t)
-			case "nofollow":
-				supportsNofollow(t)
 			case "windows":
 				if runtime.GOOS == "windows" {
 					t.Skip("Skipping on Windows")
@@ -809,23 +668,24 @@ loop:
 					c.line, c.cmd, 1, len(c.args), c.args)
 			}
 
-			do = append(do, func() {
-				w.addWatch(t, tmppath(tmp, c.args[0]))
-			})
+			do = append(do, func() { w.addWatch(t, tmppath(tmp, c.args[0])) })
 		case "unwatch":
 			mustArg(c, 1)
 			do = append(do, func() { w.rmWatch(t, tmppath(tmp, c.args[0])) })
 		case "watchlist":
 			mustArg(c, 1)
-			//n, err := strconv.ParseInt(c.args[0], 10, 0)
-			//if err != nil {
-			//	t.Fatalf("line %d: %s", c.line, err)
-			//}
+			n, err := strconv.ParseInt(c.args[0], 10, 0)
+			if err != nil {
+				t.Fatalf("line %d: %s", c.line, err)
+			}
 			do = append(do, func() {
-				//wl := w.w.WatchList()
-				//if l := int64(len(wl)); l != n {
-				//	t.Errorf("line %d: watchlist has %d entries, not %d\n%q", c.line, l, n, wl)
-				//}
+				var wl []string
+				for _, s := range w.streams {
+					wl = append(wl, s.Paths...)
+				}
+				if l := int64(len(wl)); l != n {
+					t.Errorf("line %d: watchlist has %d entries, not %d\n%q", c.line, l, n, wl)
+				}
 			})
 		case "touch":
 			mustArg(c, 1)
@@ -847,16 +707,6 @@ loop:
 				t.Fatalf("line %d: only ln -s is supported", c.line)
 			}
 			do = append(do, func() { symlink(t, tmppath(tmp, c.args[1]), tmppath(tmp, c.args[2])) })
-		case "mkfifo":
-			mustArg(c, 1)
-			do = append(do, func() { mkfifo(t, tmppath(tmp, c.args[0])) })
-		case "mknod":
-			mustArg(c, 2)
-			n, err := strconv.ParseInt(c.args[0], 10, 0)
-			if err != nil {
-				t.Fatalf("line %d: %s", c.line, err)
-			}
-			do = append(do, func() { mknod(t, int(n), tmppath(tmp, c.args[1])) })
 		case "mv":
 			mustArg(c, 2)
 			do = append(do, func() { mv(t, tmppath(tmp, c.args[0]), tmppath(tmp, c.args[1])) })
@@ -918,6 +768,7 @@ loop:
 	}
 
 	for _, d := range do {
+		eventSeparator()
 		d()
 	}
 	ev := w.stop()
