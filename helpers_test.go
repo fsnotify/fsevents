@@ -68,7 +68,7 @@ func (flags EventFlags) String() string {
 }
 
 // We wait a little bit after most commands; gives the system some time to sync
-// things and makes things more consistent across platforms.
+// things and makes things more consistent.
 func eventSeparator() { time.Sleep(100 * time.Millisecond) }
 func waitForEvents()  { time.Sleep(500 * time.Millisecond) }
 
@@ -93,7 +93,7 @@ func (w *eventCollector) addWatch(t *testing.T, path ...string) {
 
 	es := &EventStream{
 		Paths:   []string{p},
-		Latency: 0, // 500 * time.Millisecond,
+		Latency: 0,
 		Device:  dev,
 		Flags:   FileEvents | NoDefer,
 	}
@@ -394,24 +394,12 @@ func (e Events) copy() Events {
 
 // Create a new Events list from a string; for example:
 //
-//	CREATE        path
-//	CREATE|WRITE  path
+//	ItemIsFile|ItemCreated  path
+//	ItemIsFile|ItemModified path
 //
 // Every event is one line, and any whitespace between the event and path are
 // ignored. The path can optionally be surrounded in ". Anything after a "#" is
 // ignored.
-//
-// Platform-specific tests can be added after GOOS:
-//
-//	# Tested if nothing else matches
-//	CREATE   path
-//
-//	# Windows-specific test.
-//	windows:
-//	  WRITE    path
-//
-// You can specify multiple platforms with a comma (e.g. "windows, linux:").
-// "kqueue" is a shortcut for all kqueue systems (BSD, macOS).
 func newEvents(t *testing.T, s string) Events {
 	t.Helper()
 
