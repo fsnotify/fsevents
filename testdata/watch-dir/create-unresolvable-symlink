@@ -4,6 +4,3 @@ ln -s /target /link
 
 Output:
     ItemCreated|ItemIsSymlink /link
-
-	dragonfly:  # TODO: should fix this if possible.
-		no-events

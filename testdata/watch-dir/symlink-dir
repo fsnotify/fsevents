@@ -5,6 +5,3 @@ ln -s /dir /link
 
 Output:
     ItemCreated|ItemIsSymlink /link
-
-	dragonfly: # TODO: can we fix this?
-		no-events
