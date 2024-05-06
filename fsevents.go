@@ -54,6 +54,7 @@ func DeviceForPath(path string) (int32, error) {
 //	...
 type EventStream struct {
 	stream       fsEventStreamRef
+	qref         fsDispatchQueueRef
 	hasFinalizer bool
 	registryID   uintptr
 	uuid         string
@@ -163,8 +164,9 @@ func (es *EventStream) Flush(sync bool) {
 // Stop stops listening to the event stream.
 func (es *EventStream) Stop() {
 	if es.stream != nil {
-		stop(es.stream)
+		stop(es.stream, es.qref)
 		es.stream = nil
+		es.qref = nil
 	}
 
 	// Remove eventstream from the registry

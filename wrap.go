@@ -22,6 +22,14 @@ static FSEventStreamRef EventStreamCreate(FSEventStreamContext * context, uintpt
 	context->info = (void*) info;
 	return FSEventStreamCreate(NULL, (FSEventStreamCallback) fsevtCallback, context, paths, since, latency, flags);
 }
+
+static void DispatchQueueRetain(dispatch_queue_t queue) {
+	dispatch_retain(queue);
+}
+
+static void DispatchQueueRelease(dispatch_queue_t queue) {
+	dispatch_release(queue);
+}
 */
 import "C"
 import (
@@ -278,6 +286,8 @@ func fsevtCallback(stream C.FSEventStreamRef, info uintptr, numEvents C.size_t, 
 	es.Events <- events
 }
 
+type fsDispatchQueueRef C.dispatch_queue_t
+
 // fsEventStreamRef wraps C.FSEventStreamRef
 type fsEventStreamRef C.FSEventStreamRef
 
@@ -426,14 +436,16 @@ func (es *EventStream) start(paths []string, callbackInfo uintptr) error {
 
 	es.stream = setupStream(paths, es.Flags, callbackInfo, since, es.Latency, es.Device)
 
-	q := C.dispatch_queue_create(nil, nil)
-	C.FSEventStreamSetDispatchQueue(es.stream, q)
+	es.qref = fsDispatchQueueRef(C.dispatch_queue_create(nil, nil))
+	C.DispatchQueueRetain(es.qref)
+	C.FSEventStreamSetDispatchQueue(es.stream, es.qref)
 
 	if C.FSEventStreamStart(es.stream) == 0 {
 		// cleanup stream
 		C.FSEventStreamInvalidate(es.stream)
 		C.FSEventStreamRelease(es.stream)
 		es.stream = nil
+		es.qref = nil
 		return fmt.Errorf("failed to start eventstream")
 	}
 
@@ -463,8 +475,9 @@ func flush(stream fsEventStreamRef, sync bool) {
 }
 
 // stop requests fsevents stops streaming events
-func stop(stream fsEventStreamRef) {
+func stop(stream fsEventStreamRef, qref fsDispatchQueueRef) {
 	C.FSEventStreamStop(stream)
 	C.FSEventStreamInvalidate(stream)
 	C.FSEventStreamRelease(stream)
+	C.DispatchQueueRelease(qref)
 }
