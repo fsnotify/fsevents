@@ -227,6 +227,7 @@ func TestMany(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	var lock sync.Mutex
 	events := make(map[string]EventFlags, 810)
 
 	wait := make(chan struct{})
@@ -235,6 +236,8 @@ func TestMany(t *testing.T) {
 		for {
 			select {
 			case msg := <-es.Events:
+				lock.Lock()
+
 				for _, event := range msg {
 					if _, ok := events[event.Path]; !ok {
 						events[event.Path] = event.Flags
@@ -242,6 +245,8 @@ func TestMany(t *testing.T) {
 						events[event.Path] = events[event.Path].set(event.Flags)
 					}
 				}
+
+				lock.Unlock()
 			case <-time.After(3 * time.Second):
 				wait <- struct{}{}
 			}
