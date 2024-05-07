@@ -23,10 +23,6 @@ static FSEventStreamRef EventStreamCreate(FSEventStreamContext * context, uintpt
 	return FSEventStreamCreate(NULL, (FSEventStreamCallback) fsevtCallback, context, paths, since, latency, flags);
 }
 
-static void DispatchQueueRetain(dispatch_queue_t queue) {
-	dispatch_retain(queue);
-}
-
 static void DispatchQueueRelease(dispatch_queue_t queue) {
 	dispatch_release(queue);
 }
@@ -437,16 +433,17 @@ func (es *EventStream) start(paths []string, callbackInfo uintptr) error {
 	es.stream = setupStream(paths, es.Flags, callbackInfo, since, es.Latency, es.Device)
 
 	es.qref = fsDispatchQueueRef(C.dispatch_queue_create(nil, nil))
-	C.DispatchQueueRetain(es.qref)
 	C.FSEventStreamSetDispatchQueue(es.stream, es.qref)
 
 	if C.FSEventStreamStart(es.stream) == 0 {
 		// cleanup stream
 		C.FSEventStreamInvalidate(es.stream)
 		C.FSEventStreamRelease(es.stream)
-		C.DispatchQueueRelease(es.qref)
 		es.stream = nil
+
+		C.DispatchQueueRelease(es.qref)
 		es.qref = nil
+
 		return fmt.Errorf("failed to start eventstream")
 	}
 
