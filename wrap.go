@@ -444,6 +444,7 @@ func (es *EventStream) start(paths []string, callbackInfo uintptr) error {
 		// cleanup stream
 		C.FSEventStreamInvalidate(es.stream)
 		C.FSEventStreamRelease(es.stream)
+		C.DispatchQueueRelease(es.qref)
 		es.stream = nil
 		es.qref = nil
 		return fmt.Errorf("failed to start eventstream")
