@@ -1,0 +1,11 @@
+# Remove a symlink.
+
+touch /file
+ln -s /file /link
+
+watch /
+
+rm /link
+
+Output:
+    ItemIsSymlink|ItemRemoved /link

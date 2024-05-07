@@ -1,0 +1,25 @@
+# Add directory to a recursively watched dir.
+mkdir -p /sub/dir
+watch /
+
+mkdir -p /sub/dir/newdir
+touch /sub/dir/newdir/file
+rm /sub/dir/newdir/file
+
+# Re-create file.
+touch /sub/dir/newdir/file
+rm /sub/dir/newdir/file
+
+# Write to file.
+echo foo >/sub/dir/newdir/file
+
+Output:
+    ItemCreated|ItemIsDir /sub/dir/newdir
+    ItemCreated|ItemIsFile /sub/dir/newdir/file
+    ItemIsFile|ItemRemoved /sub/dir/newdir/file
+
+    ItemCreated|ItemIsFile /sub/dir/newdir/file
+    ItemIsFile|ItemRemoved /sub/dir/newdir/file
+
+    ItemCreated|ItemIsFile /sub/dir/newdir/file
+    ItemIsFile|ItemModified /sub/dir/newdir/file

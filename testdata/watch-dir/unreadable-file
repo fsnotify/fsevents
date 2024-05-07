@@ -1,0 +1,16 @@
+# Create a watcher in a directory with an unreadable file.
+
+touch /unreadable
+chmod 0 /unreadable
+touch /file
+watch /
+
+echo hello >>/file
+rm /file
+rm /unreadable
+
+Output:
+    ItemIsFile|ItemModified /file
+    ItemIsFile|ItemRemoved /file
+    ItemIsFile|ItemRemoved /unreadable
+

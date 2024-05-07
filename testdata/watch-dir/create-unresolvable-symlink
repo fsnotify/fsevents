@@ -1,0 +1,6 @@
+# Create unresolvable symlink
+watch /
+ln -s /target /link
+
+Output:
+    ItemCreated|ItemIsSymlink /link

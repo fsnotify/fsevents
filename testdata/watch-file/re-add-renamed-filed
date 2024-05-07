@@ -1,0 +1,15 @@
+# Re-add renamed file.
+touch /file
+watch /file
+
+mv /file /rename
+touch /file
+watch /file
+
+echo hello >>/rename
+echo hello >>/file
+
+Output:
+    ItemIsFile|ItemRenamed /file
+    ItemCreated|ItemIsFile /file
+    ItemIsFile|ItemModified /file

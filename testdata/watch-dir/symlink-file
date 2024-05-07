@@ -1,0 +1,7 @@
+# Create a new symlink to a file.
+touch /file
+watch /
+ln -s /file /link
+
+Output:
+    ItemCreated|ItemIsSymlink /link

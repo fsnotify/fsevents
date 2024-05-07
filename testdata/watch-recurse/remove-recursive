@@ -1,0 +1,22 @@
+# Remove recursive.
+mkdir -p /dir1/subdir
+mkdir -p /dir2/subdir
+touch /dir1/subdir/file
+touch /dir2/subdir/file
+
+watch /dir1/
+watch /dir2/
+echo asd >>/dir1/subdir/file
+echo asd >>/dir2/subdir/file
+
+watchlist 2
+unwatch /dir1
+unwatch /dir2
+watchlist 0
+
+echo asd >>/dir1/subdir/file
+echo asd >>/dir2/subdir/file
+
+Output:
+    ItemIsFile|ItemModified /dir1/subdir/file
+    ItemIsFile|ItemModified /dir2/subdir/file

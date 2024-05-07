@@ -1,0 +1,11 @@
+# Cyclic symlink
+ln -s ./ /link
+watch /
+
+rm /link
+echo foo >>/link
+
+Output:
+    ItemIsSymlink|ItemRemoved /link
+    ItemCreated|ItemIsFile /link
+    ItemIsFile|ItemModified /link

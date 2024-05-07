@@ -1,0 +1,18 @@
+# Overwrite watched file with non-watched file.
+
+touch /file
+touch /unwatch
+
+watch /file
+
+mv /unwatch /file
+
+echo asd >>/file
+rm /file
+
+Output:
+    ItemIsFile|ItemRenamed /file
+    ItemIsFile|ItemRenamed /file
+    ItemIsFile|ItemModified /file
+    ItemIsFile|ItemRemoved /file
+

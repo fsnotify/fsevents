@@ -1,0 +1,11 @@
+# Rename a symlink.
+touch /file
+ln -s /file /link
+
+watch /
+
+mv /link /link-rename
+
+Output:
+    ItemIsSymlink|ItemRenamed /link
+    ItemIsSymlink|ItemRenamed /link-rename

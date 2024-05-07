@@ -1,0 +1,18 @@
+# 
+
+watch /
+
+mkdir /sub       # Create sub-directory
+touch /file      # Create a file
+touch /sub/file2 # Create a file
+sleep 200ms
+rm -r /sub       # Make sure receive deletes for both file and sub-directory
+rm /file
+
+Output:
+    ItemCreated|ItemIsDir /sub
+    ItemCreated|ItemIsFile /file
+    ItemCreated|ItemIsFile /sub/file2
+    ItemIsFile|ItemRemoved /sub/file2
+    ItemIsDir|ItemRemoved /sub
+    ItemIsFile|ItemRemoved /file

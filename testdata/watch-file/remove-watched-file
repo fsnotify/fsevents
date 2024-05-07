@@ -1,0 +1,8 @@
+# Remove watched file.
+
+touch /file
+watch /file
+rm /file
+
+Output:
+    ItemIsFile|ItemRemoved /file

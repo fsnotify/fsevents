@@ -1,0 +1,19 @@
+# Make a nested directory tree, then write some files there.
+mkdir -p /sub/dir
+watch /
+
+echo asd >/file
+echo asd >/sub/dir/file
+
+rm /file
+rm /sub/dir/file
+
+Output:
+    ItemCreated|ItemIsFile /file
+    ItemIsFile|ItemModified /file
+
+    ItemCreated|ItemIsFile /sub/dir/file
+    ItemIsFile|ItemModified /sub/dir/file
+
+    ItemIsFile|ItemRemoved /file
+    ItemIsFile|ItemRemoved /sub/dir/file

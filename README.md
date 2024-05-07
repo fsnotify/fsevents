@@ -27,6 +27,53 @@ get merged *if* there's a decent signal they're correct. Merely "it compiles" it
 not enough, because so much of this relies on runtime behaviour. Either a new
 test should be added, or patches should be tested manually.
 
+### Test Scripts
+Support for test scripts akin to ones in [fsnotify](https://github.com/fsnotify/fsnotify)
+have been added.
+
+All the scripts are in the `testdata` folder, and test can be ran individually
+using the pattern: 
+
+```go test -run TestScript/<path to test script file>```
+
+Scripts are written using a simple DSL which runs a few available shell commands, 
+and also allows setting/unsetting the watcher, as well as verifying the output.
+
+Available commands:
+```
+    watch path [ops]    # Watch the path, reporting events for it. Nothing is
+                        # watched by default. 
+    unwatch path        # Stop watching the path.
+    watchlist n         # Assert watchlist length.
+
+    stop                # Stop running the script; for debugging.
+
+    touch path
+    mkdir [-p] dir
+    ln -s target link   # Only ln -s supported.
+    mv src dst
+    rm [-r] path
+    chmod mode path     # Octal only
+    sleep time-in-ms
+
+    cat path            # Read path (does nothing with the data; just reads it).
+    echo str >>path     # Append "str" to "path".
+    echo str >path      # Truncate "path" and write "str".
+```
+
+Output can be verified in the scripts using the events and event flags emitted 
+by FSEvents. Assertions are defined in the `Output` section of the test script.
+All the flags in test script assertions are equivalent to the ones defined in
+`wrap.go` with the type EventFlags.
+
+The output section format:
+```
+Output:
+    # Comment
+    EventFlag1|EventFlag2  path  # Comment
+```
+
+
 Really quick FSEvents overview
 ==============================
 For those new to FSEvents itself (the Apple technology), here's a really quick

@@ -1,0 +1,13 @@
+# Rename file in watched dir, overwriting an existing file.
+
+touch /file
+touch /rename
+
+watch /
+
+mv /file /rename
+
+Output:
+    ItemIsFile|ItemRenamed /file
+    ItemIsFile|ItemRenamed /rename
+    ItemIsFile|ItemRenamed /rename

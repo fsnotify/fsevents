@@ -1,0 +1,8 @@
+# chmod the watched file.
+
+touch /file
+watch /file
+chmod 700 /file
+
+Output:
+    ItemChangeOwner|ItemIsFile /file

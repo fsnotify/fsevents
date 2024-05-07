@@ -1,0 +1,13 @@
+# Remove nested directory
+mkdir -p /sub/dir
+watch /
+
+echo asd >/sub/dir/file
+rm -r /sub
+
+Output:
+    ItemCreated|ItemIsFile /sub/dir/file
+    ItemIsFile|ItemModified /sub/dir/file
+    ItemIsFile|ItemRemoved /sub/dir/file
+    ItemIsDir|ItemRemoved /sub/dir
+    ItemIsDir|ItemRemoved /sub

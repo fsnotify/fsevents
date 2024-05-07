@@ -4,11 +4,43 @@ package fsevents
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 )
+
+func TestScript(t *testing.T) {
+	err := filepath.Walk("./testdata", func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if info.IsDir() {
+			return nil
+		}
+
+		n := strings.Split(filepath.ToSlash(path), "/")
+		t.Run(strings.Join(n[1:], "/"), func(t *testing.T) {
+			t.Parallel()
+
+			d, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			parseScript(t, string(d))
+		})
+
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestBasicExample(t *testing.T) {
 	path, err := os.MkdirTemp("", "fsexample")
@@ -167,5 +199,135 @@ func TestRegistry(t *testing.T) {
 	registry.Delete(i)
 	if registry.Get(i) != nil {
 		t.Error("failed to delete registry")
+	}
+}
+
+func TestMany(t *testing.T) {
+	tmp := t.TempDir()
+
+	path, err := filepath.EvalSymlinks(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dev, err := DeviceForPath(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	es := &EventStream{
+		Paths:   []string{path},
+		Latency: 0,
+		Device:  dev,
+		Flags:   FileEvents | NoDefer,
+	}
+
+	err = es.Start()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	events := make(map[string]EventFlags, 810)
+
+	wait := make(chan struct{})
+
+	go func() {
+		for {
+			select {
+			case msg := <-es.Events:
+				for _, event := range msg {
+					if _, ok := events[event.Path]; !ok {
+						events[event.Path] = event.Flags
+					} else {
+						events[event.Path] = events[event.Path].set(event.Flags)
+					}
+				}
+			case <-time.After(3 * time.Second):
+				wait <- struct{}{}
+			}
+		}
+	}()
+
+	const data = "data"
+
+	var wg sync.WaitGroup
+	wg.Add(200)
+
+	for i := 0; i < 100; i++ {
+		i := i
+
+		go func() {
+			defer wg.Done()
+			echoAppend(t, data, fmt.Sprintf("%s/file-%d", path, i))
+		}()
+
+		go func() {
+			defer wg.Done()
+			mkdir(t, fmt.Sprintf("%s/dir-%d", path, i))
+		}()
+	}
+	wg.Wait()
+
+	wg.Add(100)
+	for i := 0; i < 100; i++ {
+		i := i
+
+		go func() {
+			defer wg.Done()
+			echoAppend(t, data, fmt.Sprintf("%s/dir-%d/file-%d", path, i, i))
+		}()
+	}
+	wg.Wait()
+
+	wg.Add(200)
+	for i := 0; i < 100; i++ {
+		i := i
+		go func() {
+			defer wg.Done()
+			rm(t, fmt.Sprintf("%s/file-%d", tmp, i))
+		}()
+		go func() {
+			defer wg.Done()
+			rmAll(t, fmt.Sprintf("%s/dir-%d", tmp, i))
+		}()
+	}
+	wg.Wait()
+
+	select {
+	case <-wait:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for events")
+	}
+
+	const fileExpectedFlags = ItemIsFile | ItemCreated | ItemModified | ItemRemoved
+	const dirExpectedFlags = ItemIsDir | ItemCreated | ItemRemoved
+
+	for p, flags := range events {
+		if p == strings.TrimPrefix(path, "/") {
+			continue
+		}
+
+		switch {
+		case flags.hasFlag(ItemIsFile):
+			if flags.String() != fileExpectedFlags.String() {
+				t.Fatalf(
+					"file flags for path '%s' did not match expected '%s' found '%s'",
+					p,
+					fileExpectedFlags.String(),
+					flags.String(),
+				)
+			}
+		case flags.hasFlag(ItemIsDir):
+			if flags.String() != dirExpectedFlags.String() {
+				t.Fatalf(
+					"file flags for path '%s' did not match expected '%s' found '%s'",
+					p,
+					dirExpectedFlags.String(),
+					flags.String(),
+				)
+			}
+		default:
+			t.Fatal("unrecognized flag")
+		}
 	}
 }

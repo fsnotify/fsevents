@@ -1,0 +1,14 @@
+#
+
+touch /before-watch
+watch /
+
+echo data >>/file
+rm /file
+rm /before-watch
+
+Output:
+    ItemCreated|ItemIsFile /file
+    ItemIsFile|ItemModified /file
+    ItemIsFile|ItemRemoved /file
+    ItemIsFile|ItemRemoved /before-watch

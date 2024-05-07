@@ -1,0 +1,15 @@
+# Watch the same directory twice.
+
+watch /
+watch /
+
+touch /file
+echo hello >>/file
+rm /file
+mkdir /dir
+
+Output:
+    ItemCreated|ItemIsFile /file
+    ItemIsFile|ItemModified /file
+    ItemIsFile|ItemRemoved /file
+    ItemCreated|ItemIsDir /dir

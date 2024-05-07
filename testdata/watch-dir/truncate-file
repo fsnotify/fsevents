@@ -1,0 +1,9 @@
+# Truncate file
+
+echo data >file
+watch /
+echo data >file
+
+Output:
+    ItemInodeMetaMod|ItemIsFile /file
+    ItemIsFile|ItemModified /file

@@ -1,0 +1,10 @@
+# Rename watched file.
+
+touch /file
+watch /file
+
+mv /file       /rename-one
+mv /rename-one /rename-two
+
+Output:
+    ItemIsFile|ItemRenamed /file

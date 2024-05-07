@@ -1,0 +1,14 @@
+# Rename nested directory.
+mkdir -p /sub/dir
+watch /
+
+mv /sub /sub-rename
+touch /sub-rename/file
+touch /sub-rename/dir/file
+
+Output:
+    ItemIsDir|ItemRenamed /sub
+    ItemIsDir|ItemRenamed /sub-rename
+
+    ItemCreated|ItemIsFile /sub-rename/file
+    ItemCreated|ItemIsFile /sub-rename/dir/file

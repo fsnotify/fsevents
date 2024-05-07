@@ -1,0 +1,17 @@
+# Make file unreadable after watch.
+touch /unreadable
+touch /file
+watch /
+
+chmod 0 /unreadable
+
+echo hello >>/file
+
+rm /file
+rm /unreadable
+
+Output:
+    ItemChangeOwner|ItemIsFile /unreadable
+    ItemIsFile|ItemModified /file
+    ItemIsFile|ItemRemoved /file
+    ItemIsFile|ItemRemoved /unreadable

@@ -1,0 +1,10 @@
+# Rename watched directory.
+
+mkdir /dir
+watch /dir
+
+mv /dir /dir-rename
+touch /dir-rename/file
+
+Output:
+    ItemIsDir|ItemRenamed /dir

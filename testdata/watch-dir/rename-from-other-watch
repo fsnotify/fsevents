@@ -1,0 +1,14 @@
+# Rename from one watched directory to another watched directory.
+
+mkdir /dir1
+mkdir /dir2
+touch /dir1/file
+
+watch /dir1
+watch /dir2
+
+mv /dir1/file /dir2/rename
+
+Output:
+    ItemIsFile|ItemRenamed /dir2/rename
+    ItemIsFile|ItemRenamed /dir1/file

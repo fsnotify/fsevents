@@ -1,0 +1,7 @@
+# Create a new symlink to a watched file.
+mkdir /dir
+watch /
+ln -s /dir /link
+
+Output:
+    ItemCreated|ItemIsSymlink /link

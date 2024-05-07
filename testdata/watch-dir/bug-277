@@ -1,0 +1,21 @@
+# https://github.com/fsnotify/fsnotify/issues/277
+touch /file1
+touch /file2
+ln -s /file1 /link1
+ln -s /file2 /link2
+
+watch /
+
+touch  /foo
+rm     /foo
+mkdir  /apple
+mv     /apple /pear
+rm -r  /pear
+
+Output:
+    ItemCreated|ItemIsFile /foo
+    ItemIsFile|ItemRemoved /foo
+    ItemCreated|ItemIsDir /apple
+    ItemIsDir|ItemRenamed /apple
+    ItemIsDir|ItemRenamed /pear
+    ItemIsDir|ItemRemoved /pear
