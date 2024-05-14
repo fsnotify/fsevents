@@ -22,6 +22,10 @@ static FSEventStreamRef EventStreamCreate(FSEventStreamContext * context, uintpt
 	context->info = (void*) info;
 	return FSEventStreamCreate(NULL, (FSEventStreamCallback) fsevtCallback, context, paths, since, latency, flags);
 }
+
+static void DispatchQueueRelease(dispatch_queue_t queue) {
+	dispatch_release(queue);
+}
 */
 import "C"
 import (
@@ -278,6 +282,8 @@ func fsevtCallback(stream C.FSEventStreamRef, info uintptr, numEvents C.size_t, 
 	es.Events <- events
 }
 
+type fsDispatchQueueRef C.dispatch_queue_t
+
 // fsEventStreamRef wraps C.FSEventStreamRef
 type fsEventStreamRef C.FSEventStreamRef
 
@@ -348,9 +354,6 @@ func cfStringToGoString(cfs C.CFStringRef) string {
 func copyCFString(cfs C.CFStringRef) C.CFStringRef {
 	return C.CFStringCreateCopy(C.kCFAllocatorDefault, cfs)
 }
-
-// cfRunLoopRef wraps C.CFRunLoopRef
-type cfRunLoopRef C.CFRunLoopRef
 
 // EventIDForDeviceBeforeTime returns an event ID before a given time.
 func EventIDForDeviceBeforeTime(dev int32, before time.Time) uint64 {
@@ -429,26 +432,20 @@ func (es *EventStream) start(paths []string, callbackInfo uintptr) error {
 
 	es.stream = setupStream(paths, es.Flags, callbackInfo, since, es.Latency, es.Device)
 
-	started := make(chan error)
+	es.qref = fsDispatchQueueRef(C.dispatch_queue_create(nil, nil))
+	C.FSEventStreamSetDispatchQueue(es.stream, es.qref)
 
-	go func() {
-		runtime.LockOSThread()
-		es.rlref = cfRunLoopRef(C.CFRunLoopGetCurrent())
-		C.CFRetain(C.CFTypeRef(es.rlref))
-		C.FSEventStreamScheduleWithRunLoop(es.stream, C.CFRunLoopRef(es.rlref), C.kCFRunLoopDefaultMode)
-		if C.FSEventStreamStart(es.stream) == 0 {
-			// cleanup stream and runloop
-			C.FSEventStreamInvalidate(es.stream)
-			C.FSEventStreamRelease(es.stream)
-			C.CFRelease(C.CFTypeRef(es.rlref))
-			es.stream = nil
-			started <- fmt.Errorf("failed to start eventstream")
-			close(started)
-			return
-		}
-		close(started)
-		C.CFRunLoopRun()
-	}()
+	if C.FSEventStreamStart(es.stream) == 0 {
+		// cleanup stream
+		C.FSEventStreamInvalidate(es.stream)
+		C.FSEventStreamRelease(es.stream)
+		es.stream = nil
+
+		C.DispatchQueueRelease(es.qref)
+		es.qref = nil
+
+		return fmt.Errorf("failed to start eventstream")
+	}
 
 	if !es.hasFinalizer {
 		// TODO: There is no guarantee this run before program exit
@@ -457,7 +454,7 @@ func (es *EventStream) start(paths []string, callbackInfo uintptr) error {
 		es.hasFinalizer = true
 	}
 
-	return <-started
+	return nil
 }
 
 func finalizer(es *EventStream) {
@@ -476,10 +473,9 @@ func flush(stream fsEventStreamRef, sync bool) {
 }
 
 // stop requests fsevents stops streaming events
-func stop(stream fsEventStreamRef, rlref cfRunLoopRef) {
+func stop(stream fsEventStreamRef, qref fsDispatchQueueRef) {
 	C.FSEventStreamStop(stream)
 	C.FSEventStreamInvalidate(stream)
 	C.FSEventStreamRelease(stream)
-	C.CFRunLoopStop(C.CFRunLoopRef(rlref))
-	C.CFRelease(C.CFTypeRef(rlref))
+	C.DispatchQueueRelease(qref)
 }
